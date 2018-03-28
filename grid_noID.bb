@@ -40,7 +40,7 @@ threadvar uint8_t myNeighborhood[6];
 /******************************/
  void myMain(void) {
      // We are forced to use a small delay before program execution,
-   delayMS(5000);
+   delayMS(500);
    lien=NO_LIEN;
    nbreWaitedAnswers=0;
    position[0] = 0;
@@ -55,8 +55,6 @@ threadvar uint8_t myNeighborhood[6];
           setColor(RED);
           position[0]=127;
           position[1]=127;
-          delayMS(2000);
-
           for (uint8_t p=0; p<6; p++) {
             if (thisNeighborhood.n[p] != VACANT) {
                sendCoordChunk(p);
@@ -71,14 +69,6 @@ threadvar uint8_t myNeighborhood[6];
          delayMS(200);
          if (position[0] == 127 && position[1] == 127 && nbreWaitedAnswers == 0)
           setColor(YELLOW);
-          if (position[0] == 130 && position[1] == 131 && nbreWaitedAnswers == 0){
-            setColor(PURPLE);
-            delayMS(100);
-            setColor(WHITE);
-          }
-
-        //if (nbreWaitedAnswers != 0)
-          //printf("%d, %d\n",getGUID(), nbreWaitedAnswers);
    }
 }
 
@@ -167,8 +157,6 @@ byte sendCoordChunk(PRef p) {
       if (thisChunk == NULL) return 0;
       byte sender = faceNum(thisChunk);
 
-      delayMS(2000);
-
 
       //***Je reçois des coordonnées identiques aux miennes***//
       if (position[0] == thisChunk->data[0] && position[1] == thisChunk->data[1]){
@@ -215,16 +203,10 @@ byte sendCoordChunk(PRef p) {
           nbreWaitedAnswers++;
         }
 
-        //delayMS(1000);
-
 
       if (nbreWaitedAnswers==0 && lien != NO_LIEN){
           sendBackChunk(lien);
         }
-        printf("%d,(%d;%d)\n",(int)getGUID(),position[0],position[1]);
-
-      /*  if (getGUID() == 2 || getGUID() == 5 || getGUID() == 31 || getGUID() == 35)
-        printf("%d,(%d;%d)\n",(int)getGUID(),position[0],position[1]);*/
 
       return 1;
 }
@@ -235,7 +217,6 @@ byte sendCoordChunk(PRef p) {
  byte backMessageHandler(void) {
    if (thisChunk==NULL) return 0;
    uint8_t sender=faceNum(thisChunk);
-   delayMS(2000);
 
    if (nbreWaitedAnswers != 0){
    if ( (sender==xplusBorder && thisChunk->data[0] == (position[0]+1) && thisChunk->data[1] == position[1]) ||
@@ -244,7 +225,6 @@ byte sendCoordChunk(PRef p) {
         (sender==5-yplusBorder && thisChunk->data[0] == position[0] && thisChunk->data[1] == (position[1]-1)) ) {
 
    nbreWaitedAnswers--;
-   //printf("%d, Reponses = %d, Envoyeur: %d\n",(int)getGUID(), nbreWaitedAnswers, sender);
 
    if (nbreWaitedAnswers==0 && lien != NO_LIEN) {
 
@@ -252,7 +232,6 @@ byte sendCoordChunk(PRef p) {
        sendBackChunk(lien);
         }
     }
- //delayMS(1000);
    return 1;
  }
 }
@@ -267,21 +246,18 @@ void neighborChangeDetect(void){
 
  if (position[0]!=0 && position[1]!=0){
 
-   delayMS(200);
+    delayMS(200);
 
 
-      if (thisNeighborhood.n[UP]!=VACANT && myNeighborhood[UP]==0) //si on "decouvre" un nvx voisin a droite on lui attribue des coord
-{
-  printf("nvx en haut\n ");
-  sendCoordChunk(UP);}
+  if (thisNeighborhood.n[UP]!=VACANT && myNeighborhood[UP]==0) //si on "decouvre" un nvx voisin a droite on lui attribue des coord
+      sendCoordChunk(UP);
 
-else if(thisNeighborhood.n[WEST]!=VACANT && myNeighborhood[WEST]==0) //si on "decouvre" un nvx voisin en haut
-{
-  sendCoordChunk(WEST);
-  printf("nvx a droite\n");
+  else if(thisNeighborhood.n[WEST]!=VACANT && myNeighborhood[WEST]==0) //si on "decouvre" un nvx voisin en haut
+      sendCoordChunk(WEST);
+
+    }
 }
-}
-}
+
 
 
  void getNeighbors(void){
@@ -292,15 +268,15 @@ else if(thisNeighborhood.n[WEST]!=VACANT && myNeighborhood[WEST]==0) //si on "de
 
 
    for (uint8_t p=0; p<6; p++) {
-    if (thisNeighborhood.n[p] != VACANT)
-    { myNeighborhood[p]=1;
-    c++;}
+    if (thisNeighborhood.n[p] != VACANT){
+      myNeighborhood[p]=1;
+      c++;
+    }
     else
-    {myNeighborhood[p]=0;}
-
+      myNeighborhood[p]=0;
 
   }
+
   printf(" %d voisins sur %d \n",c,(int)getGUID());
 
-
- }
+}

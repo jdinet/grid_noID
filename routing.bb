@@ -63,7 +63,7 @@ threadvar  Chunk myChunks[MYCHUNKS];
 
 
  while(1) {
-         delayMS(500);
+         delayMS(100);
          //if (position[0] == 127 && position[1] == 127 && nbreWaitedAnswers == 0)
           //setColor(YELLOW);
    }
@@ -234,7 +234,7 @@ byte sendCoordChunk(PRef p) {
 
    if (nbreWaitedAnswers==0 && lien == NO_LIEN){
      setColor(YELLOW);
-     sendExecOn(5, 130, 130, 0, 147);
+     sendExecOn(3, 130, 130, 0, 147);
    }
 
 
@@ -258,19 +258,19 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 
     delayMS(200);
 
+    if (c!=NULL) {
+
 		c->data[0] = px;
 		c->data[1] = py;
 		c->data[2] = donnee;
 		c->data[3] = fonc;
 
 
-    printf("%d, (%d, %d, %d, %d)\n", (int)getGUID(), c->data[0], c->data[1], c->data[2], c->data[3]);
+    //printf("%d, (%d, %d, %d, %d)\n", (int)getGUID(), c->data[0], c->data[1], c->data[2], c->data[3]);
 
 
-
-  if (c!=NULL) {
-    printf("%d, %s\n", (int)getGUID(), "sendExecOn");
-		if (sendMessageToPort(c, p, c->data, 4, execOn, &freeMyChunk) == 0) {
+		if (sendMessageToPort(c, p, c->data, 4, execOn, (GenericHandler)&freeMyChunk) == 0) {
+      printf("%d, %s\n", (int)getGUID(), "sendExecOn");
 			freeChunk(c);
 			return 0;
 		}
@@ -289,7 +289,7 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 			uint8_t donnee = thisChunk->data[2];
 			byte fonc = thisChunk->data[3];
 
-      printf("%d, (%d;%d), %d, %s\n",(int)getGUID(),receiver[0],receiver[1], donnee, fonc);
+      printf("%d, (%d;%d), %d, %d\n",(int)getGUID(),receiver[0],receiver[1], donnee, fonc);
 
       setColor(RED);
       delayMS(300);
@@ -302,10 +302,10 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 			if (position[0] != receiver[0]){
 
 				if (position[0] < receiver[0])
-					sendExecOn(EAST, receiver[0], receiver[1], donnee, fonc);
+					sendExecOn(WEST, receiver[0], receiver[1], donnee, fonc);
 
 				else
-					sendExecOn(WEST, receiver[0], receiver[1], donnee, fonc);
+					sendExecOn(EAST, receiver[0], receiver[1], donnee, fonc);
 			}
 
 

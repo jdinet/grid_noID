@@ -38,8 +38,7 @@ threadvar  Chunk myChunks[MYCHUNKS];
  byte getSpawn(uint8_t donnee,uint8_t t);
  byte sendShape(PRef p);
  byte shapeMessageHandler(void);
- byte sendDown(void);
- byte scrollDown(void);
+ byte goingDown(void);
 
 
 /******************************/
@@ -448,10 +447,13 @@ byte sendShape(PRef p) {
  }
 
  byte shapeMessageHandler(void) {
+   printf("%d, %s\n",(int)getGUID(), "Je rentre dans la fo shap-mess");
       if (thisChunk == NULL) return 0;
       byte sender = faceNum(thisChunk);
 
-      if (rota==UNKNOWN){
+      //delayMS(2000);
+
+      if (fpos==UNKNOWN){
 
         forme = thisChunk->data[0];
         rota = thisChunk->data[1];
@@ -467,36 +469,46 @@ byte sendShape(PRef p) {
         for (uint8_t p=0; p<6; p++) {
 
           if (p!=sender && thisNeighborhood.n[p] != VACANT){
-          printf("%d, %d, %d, %s\n",(int)getGUID(), fpos, p, "Sent");
 
             sendShape(p);
-          }
-          }
+            printf("%d, %d, %d, %s\n",(int)getGUID(), fpos, p, "Sent");
+                    }
+              }
+
+              goingDown();
 
            //printf("%d, %s\n",(int)getGUID(), "All sent");
 
-           while(fpos != 0 && fpos != 1 && fpos != 2){
-             printf("%d, %d, %s\n",(int)getGUID(), fpos, "Je fais mon delay while");
-             delayMS(3000);
-             fpos = fpos - 3;
-             if (sample[forme][rota][fpos] == 1)
-               setColor(YELLOW);
-             else
-               setColor(WHITE);
-           }
 
-           printf("%d, %d, %s\n",(int)getGUID(), fpos, "Je fais mon delay After_While");
-           delayMS(3000);
-           setColor(AQUA);
-
-           //sendDown();
-           /*if (fpos == 0 || fpos == 1 || fpos == 2){
-             forme = 0;
-             rota = 0;
-             fpos = 0;
-             setColor(AQUA);
-           }*/
-         }
-
+           //printf("%d, %d, %s\n",(int)getGUID(), fpos, "Je fais mon delay while");
+}
       return 1;
+}
+
+byte goingDown(void){
+  while (fpos <= 8 && fpos >= 0){
+
+    if (sample[forme][rota][fpos] == 1)
+      setColor(YELLOW);
+    else
+      setColor(WHITE);
+
+      delayMS(5000);
+
+  if (fpos == 0 || fpos == 1 || fpos == 2){
+    setColor(AQUA);
+    fpos = UNKNOWN;
+  }
+
+  else if (fpos == 6 || fpos == 7 || fpos == 8){
+    fpos = fpos - 3;
+    if (thisNeighborhood.n[DOWN] != VACANT)
+     sendShape(DOWN);
+   }
+
+   else if (fpos == 3 || fpos == 4 || fpos == 5){
+     fpos = fpos - 3;
+   }
+ }
+   return 1;
 }

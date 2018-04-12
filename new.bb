@@ -193,7 +193,7 @@ byte sendCoordChunk(PRef p) {
       if (thisChunk == NULL) return 0;
       byte sender = faceNum(thisChunk);
 
-      delayMS(100);
+      delayMS(50);
 
 
       //***Je reçois des coordonnées identiques aux miennes***//
@@ -258,7 +258,7 @@ byte sendCoordChunk(PRef p) {
    if (thisChunk==NULL) return 0;
    uint8_t sender=faceNum(thisChunk);
 
-   delayMS(100);
+   delayMS(50);
 
    if ( (sender==xplusBorder && thisChunk->data[0] == (position[0]+1) && thisChunk->data[1] == position[1]) ||
         (sender==5-xplusBorder && thisChunk->data[0] == (position[0]-1) && thisChunk->data[1] == position[1]) ||
@@ -304,7 +304,7 @@ byte sendCoordChunk(PRef p) {
 byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 	Chunk *c = getFreeUserChunk();
 
-    delayMS(100);
+    delayMS(50);
 
     if (c!=NULL) {
 
@@ -335,7 +335,7 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 
       //printf("%d, (%d;%d), %d, %d\n",(int)getGUID(),receiver[0],receiver[1], donnee, fonc);
 
-      delayMS(100);
+      delayMS(50);
 
 			if (position[0] != receiver[0]){
 
@@ -386,7 +386,7 @@ byte getSpawn(uint8_t donnee, uint8_t t){
 
 
     if (countspawn == 2){
-    delayMS(100);
+    delayMS(50);
       sendExecOn(WEST,127+tab[0],124+tab[1],0,166);
       return 0;
   }
@@ -447,14 +447,13 @@ byte sendShape(PRef p) {
  }
 
  byte shapeMessageHandler(void) {
-   printf("%d, %s\n",(int)getGUID(), "Je rentre dans la fo shap-mess");
       if (thisChunk == NULL) return 0;
       byte sender = faceNum(thisChunk);
 
-      //delayMS(2000);
 
-      if (fpos==UNKNOWN){
 
+
+      if (fpos != thisChunk->data[2]){
         forme = thisChunk->data[0];
         rota = thisChunk->data[1];
         fpos = thisChunk->data[2];
@@ -465,6 +464,7 @@ byte sendShape(PRef p) {
 					setColor(WHITE);
           printf("%d, %s\n",(int)getGUID(), "Light it up");
 
+        if (fpos != 0 && fpos != 1 && fpos != 2){
 
         for (uint8_t p=0; p<6; p++) {
 
@@ -474,14 +474,20 @@ byte sendShape(PRef p) {
             printf("%d, %d, %d, %s\n",(int)getGUID(), fpos, p, "Sent");
                     }
               }
+            }
+            else {
+              sendShape(DOWN);
+            }
 
-              goingDown();
+              if (fpos == 0 || fpos == 1 || fpos == 2){
 
-           //printf("%d, %s\n",(int)getGUID(), "All sent");
-
-
-           //printf("%d, %d, %s\n",(int)getGUID(), fpos, "Je fais mon delay while");
-}
+                delayMS(1000);
+                setColor(AQUA);
+                fpos = fpos - 3;
+                sendShape(DOWN);
+                fpos = UNKNOWN;
+              }
+            }
       return 1;
 }
 
@@ -493,7 +499,7 @@ byte goingDown(void){
     else
       setColor(WHITE);
 
-      delayMS(5000);
+      delayMS(200);
 
   if (fpos == 0 || fpos == 1 || fpos == 2){
     setColor(AQUA);

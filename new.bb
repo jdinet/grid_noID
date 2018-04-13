@@ -39,6 +39,8 @@ threadvar  Chunk myChunks[MYCHUNKS];
  byte sendShape(PRef p);
  byte shapeMessageHandler(void);
  byte goingDown(void);
+ byte miseAZero(PRef p);
+ byte miseAZeroMessageHandler(void);
 
 
 /******************************/
@@ -279,7 +281,7 @@ byte sendCoordChunk(PRef p) {
      sendBackChunk(lien);
 
      if (thisNeighborhood.n[WEST] == VACANT && thisNeighborhood.n[DOWN] == VACANT ){
-       delayMS(1000);
+       delayMS(200);
 
      uint8_t width = position[0]-126; // afin de se compter dans le caclul
      sendExecOn(EAST,127,127,width,147);
@@ -287,7 +289,7 @@ byte sendCoordChunk(PRef p) {
 
 
      else if (thisNeighborhood.n[EAST] == VACANT && thisNeighborhood.n[UP] == VACANT ){
-       delayMS(1000);
+       delayMS(200);
 
      uint8_t height = position[1]-126;
      sendExecOn(DOWN,127,127,height,148);
@@ -397,15 +399,17 @@ byte getSpawn(uint8_t donnee, uint8_t t){
 
 byte Spawn(void){
 
+  //if (fpos == UNKNOWN){
 
   fpos = 7;
-  forme = 3;
+  forme = 4;
   rota = 1;
 
   if (sample[forme][rota][fpos] == 1)
     setColor(YELLOW);
   else
     setColor(WHITE);
+  //}
 
       for (uint8_t p=0; p<6; p++) {
           if (thisNeighborhood.n[p] != VACANT) {
@@ -413,9 +417,7 @@ byte Spawn(void){
           }
       }
 
-
-
-  return 0;
+  return 1;
 }
 
 byte sendShape(PRef p) {
@@ -434,7 +436,7 @@ byte sendShape(PRef p) {
           else if (p==5-yplusBorder)
               c->data[2]= c->data[2] + 3;
 
-          if ((c->data[2] <= 8 && c->data[2] >= 0) && (c->data[2] != fpos)){
+          if ((c->data[2] <= 8 && c->data[2] >= 0 || c->data[2] == 10) && (c->data[2] != fpos)){
 						printf("%d, %d, %d, %s\n",(int)getGUID(), fpos, p, "Fonc envoi");
           if (sendMessageToPort(c, p, c->data, 3, shapeMessageHandler,
  (GenericHandler)&freeMyChunk) == 0) {
@@ -446,17 +448,23 @@ byte sendShape(PRef p) {
       return 1;
  }
 
+
  byte shapeMessageHandler(void) {
       if (thisChunk == NULL) return 0;
       byte sender = faceNum(thisChunk);
-
-
 
 
       if (fpos != thisChunk->data[2]){
         forme = thisChunk->data[0];
         rota = thisChunk->data[1];
         fpos = thisChunk->data[2];
+
+        if (fpos == 0 || fpos == 1 || fpos == 2){
+          miseAZero(UP);
+        }
+
+
+        if (fpos != 10){
 
         if (sample[forme][rota][fpos] == 1)
           setColor(YELLOW);
@@ -475,46 +483,37 @@ byte sendShape(PRef p) {
                     }
               }
             }
-            else {
-              sendShape(DOWN);
-            }
+          }
 
-              if (fpos == 0 || fpos == 1 || fpos == 2){
-
-                delayMS(1000);
-                setColor(AQUA);
-                fpos = fpos - 3;
-                sendShape(DOWN);
-                fpos = UNKNOWN;
+              else if (fpos == 10){
+                delayMS(2000);
+                Spawn();
               }
             }
       return 1;
 }
 
-byte goingDown(void){
-  while (fpos <= 8 && fpos >= 0){
 
-    if (sample[forme][rota][fpos] == 1)
-      setColor(YELLOW);
-    else
-      setColor(WHITE);
+byte miseAZero(PRef p){
+  Chunk *c = getFreeUserChunk();
 
-      delayMS(200);
+  c->data[0] = 1;
 
-  if (fpos == 0 || fpos == 1 || fpos == 2){
-    setColor(AQUA);
-    fpos = UNKNOWN;
-  }
+  if (c != NULL) {
 
-  else if (fpos == 6 || fpos == 7 || fpos == 8){
-    fpos = fpos - 3;
-    if (thisNeighborhood.n[DOWN] != VACANT)
-     sendShape(DOWN);
-   }
+      if (sendMessageToPort(c, p, c->data, 1, miseAZeroMessageHandler,(GenericHandler)&freeMyChunk) == 0) {
+          freeChunk(c);
+          return 0;
+        }
+      }
+return 1;
+}
 
-   else if (fpos == 3 || fpos == 4 || fpos == 5){
-     fpos = fpos - 3;
-   }
- }
-   return 1;
+byte miseAZeroMessageHandler(void){
+  if (thisChunk == NULL) return 0;
+
+  setColor(AQUA);
+  fpos = UNKNOWN;
+
+  return 1;
 }

@@ -2,7 +2,6 @@
 #include "clock.bbh"
 
 
-threaddef  #define NO_LIEN  99
 threaddef #define UNKNOWN		255
 
 threadvar byte position[2];
@@ -17,8 +16,11 @@ threadvar byte forme;
 threadvar byte rota;
 threadvar byte countspawn;
 threadvar byte spawn;
+threadvar byte bigShaq;
 
-threadvar int sample[5][4][9];
+threadvar Timeout logTimeot;
+
+threadvar byte sample[5][4][9];
 
 
 threaddef  #define MYCHUNKS 12
@@ -34,20 +36,27 @@ threadvar  Chunk myChunks[MYCHUNKS];
  byte coordMessageHandler(void);
  byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc);
  byte execOn(void);
- byte Spawn(void);
+ byte spawner(void);
  byte getSpawn(uint8_t donnee,uint8_t t);
  byte sendShape(PRef p);
  byte shapeMessageHandler(void);
  byte goingDown(void);
  byte miseAZero(PRef p);
  byte miseAZeroMessageHandler(void);
+ byte areYouBlocked(PRef p);
+ byte blockedAnswer(PRef p);
+ byte blockedCheck (PRef p);
+ byte blockedRequest (void);
+ byte sendStop(PRef p);
+ byte everybodyStopNow(void);
+ byte blockedFinal (void);
 
 
 /******************************/
  void myMain(void) {
 
    delayMS(200);
-   lien=NO_LIEN;
+   lien=UNKNOWN;
    nbreWaitedAnswers=0;
    position[0] = 0;
    position[1] = 0;
@@ -56,6 +65,8 @@ threadvar  Chunk myChunks[MYCHUNKS];
    fpos = UNKNOWN;
  	 forme = UNKNOWN;
  	 rota = UNKNOWN;
+
+   bigShaq = UNKNOWN;
 
 
   sample[0][0][0]=1; sample[0][0][1]=1; sample[0][0][2]=1; sample[0][0][3]=1; sample[0][0][4]=1; sample[0][0][5]=1; sample[0][0][6]=1; sample[0][0][7]=1; sample[0][0][8]=1;
@@ -85,10 +96,6 @@ threadvar  Chunk myChunks[MYCHUNKS];
 
 
 
-
-
-
-
    if (thisNeighborhood.n[DOWN] == VACANT && thisNeighborhood.n[EAST] == VACANT) {
 
           setColor(RED);
@@ -104,10 +111,14 @@ threadvar  Chunk myChunks[MYCHUNKS];
      }
 
 
-
  while(1) {
          delayMS(100);
-
+/*
+         if (getGUID() == 11){
+           bigShaq = 1;
+           setColor(YELLOW);
+         }
+*/
    }
 }
 
@@ -245,7 +256,7 @@ byte sendCoordChunk(PRef p) {
 
 
 
-      if (nbreWaitedAnswers==0 && lien != NO_LIEN){
+      if (nbreWaitedAnswers==0 && lien != UNKNOWN){
           sendBackChunk(lien);
         }
         //printf("%d,(%d;%d)\n",(int)getGUID(),position[0],position[1]);
@@ -269,13 +280,13 @@ byte sendCoordChunk(PRef p) {
 
    nbreWaitedAnswers--;
 
-   if (nbreWaitedAnswers==0 && lien == NO_LIEN){
+   if (nbreWaitedAnswers==0 && lien == UNKNOWN){
      setColor(YELLOW);
    }
 
 
 
-   if (nbreWaitedAnswers==0 && lien != NO_LIEN) {
+   if (nbreWaitedAnswers==0 && lien != UNKNOWN) {
 
      setColor(AQUA);
      sendBackChunk(lien);
@@ -365,7 +376,7 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
           getSpawn(donnee,2);
 
       if (fonc == 166)
-        Spawn();
+        spawner();
 
 }
 
@@ -389,7 +400,7 @@ byte getSpawn(uint8_t donnee, uint8_t t){
 
     if (countspawn == 2){
     delayMS(50);
-      sendExecOn(WEST,127+tab[0],124+tab[1],0,166);
+      sendExecOn(WEST,127+tab[0],126+tab[1],0,166);
       return 0;
   }
   return 1;
@@ -397,19 +408,20 @@ byte getSpawn(uint8_t donnee, uint8_t t){
 }
 
 
-byte Spawn(void){
+byte spawner(void){
 
-  //if (fpos == UNKNOWN){
+  if (bigShaq == UNKNOWN){
 
-  fpos = 7;
-  forme = 4;
-  rota = 1;
+  if (thisNeighborhood.n[UP] != VACANT)
+  miseAZero(UP);
+  fpos = 1;
+  forme = 3;
+  rota = 2;
 
   if (sample[forme][rota][fpos] == 1)
     setColor(YELLOW);
   else
     setColor(WHITE);
-  //}
 
       for (uint8_t p=0; p<6; p++) {
           if (thisNeighborhood.n[p] != VACANT) {
@@ -418,6 +430,7 @@ byte Spawn(void){
       }
 
   return 1;
+  }
 }
 
 byte sendShape(PRef p) {
@@ -436,8 +449,8 @@ byte sendShape(PRef p) {
           else if (p==5-yplusBorder)
               c->data[2]= c->data[2] + 3;
 
-          if ((c->data[2] <= 8 && c->data[2] >= 0 || c->data[2] == 10) && (c->data[2] != fpos)){
-						printf("%d, %d, %d, %s\n",(int)getGUID(), fpos, p, "Fonc envoi");
+          if ((c->data[2] <= 8 && c->data[2] >= 0) && (c->data[2] != fpos)){
+
           if (sendMessageToPort(c, p, c->data, 3, shapeMessageHandler,
  (GenericHandler)&freeMyChunk) == 0) {
               freeChunk(c);
@@ -459,37 +472,37 @@ byte sendShape(PRef p) {
         rota = thisChunk->data[1];
         fpos = thisChunk->data[2];
 
-        if (fpos == 0 || fpos == 1 || fpos == 2){
-          miseAZero(UP);
-        }
 
-
-        if (fpos != 10){
 
         if (sample[forme][rota][fpos] == 1)
           setColor(YELLOW);
 				else
 					setColor(WHITE);
-          printf("%d, %s\n",(int)getGUID(), "Light it up");
 
-        if (fpos != 0 && fpos != 1 && fpos != 2){
 
         for (uint8_t p=0; p<6; p++) {
-
           if (p!=sender && thisNeighborhood.n[p] != VACANT){
 
             sendShape(p);
-            printf("%d, %d, %d, %s\n",(int)getGUID(), fpos, p, "Sent");
-                    }
-              }
-            }
           }
+        }
 
-              else if (fpos == 10){
-                delayMS(2000);
-                Spawn();
+              blockedCheck(DOWN);
+
+
+
+              if (fpos == 4){
+                logTimeot.callback = (GenericHandler)(&spawner);
+                logTimeot.calltime = getTime() + 1000;
+                registerTimeout(&logTimeot);
               }
-            }
+
+              if (fpos == 0 || fpos == 1 || fpos == 2){
+                if (thisNeighborhood.n[UP] != VACANT)
+                miseAZero(UP);
+              }
+        }
+
       return 1;
 }
 
@@ -506,7 +519,8 @@ byte miseAZero(PRef p){
           return 0;
         }
       }
-return 1;
+
+  return 1;
 }
 
 byte miseAZeroMessageHandler(void){
@@ -514,6 +528,120 @@ byte miseAZeroMessageHandler(void){
 
   setColor(AQUA);
   fpos = UNKNOWN;
+
+  return 1;
+}
+
+byte areYouBlocked(PRef p){
+  Chunk *c = getFreeUserChunk();
+
+  c->data[0] = 1;
+
+  if (c != NULL) {
+
+      if (sendMessageToPort(c, p, c->data, 1, blockedRequest,(GenericHandler)&freeMyChunk) == 0) {
+          freeChunk(c);
+          return 0;
+        }
+      }
+return 1;
+}
+
+
+byte blockedAnswer(PRef p){
+  Chunk *c = getFreeUserChunk();
+
+
+
+  c->data[0] = bigShaq;
+
+  if (c != NULL) {
+
+      if (sendMessageToPort(c, p, c->data, 1, blockedFinal,(GenericHandler)&freeMyChunk) == 0) {
+          freeChunk(c);
+          return 0;
+        }
+      }
+
+  return 1;
+}
+
+
+byte blockedCheck (PRef p){
+
+if (sample[forme][rota][fpos] == 1){
+
+    if (thisNeighborhood.n[p] != VACANT)
+      areYouBlocked(p);
+
+    else if (thisNeighborhood.n[p] == VACANT){
+      for (uint8_t p=0; p<6; p++) {
+        if (thisNeighborhood.n[p] != VACANT){
+
+          sendStop(p);
+        }
+      }
+    }
+  }
+
+  return 1;
+}
+
+
+byte blockedFinal (void){
+  if (thisChunk == NULL) return 0;
+    byte voisinState = thisChunk->data[0];
+
+    if (voisinState == 1){
+
+      for (uint8_t p=0; p<6; p++) {
+        if (thisNeighborhood.n[p] != VACANT)
+          sendStop(p);
+      }
+    }
+
+  return 1;
+}
+
+byte blockedRequest (void){
+  if (thisChunk == NULL) return 0;
+  byte sender = faceNum(thisChunk);
+
+  blockedAnswer(sender);
+
+  return 1;
+}
+
+byte sendStop(PRef p){
+  Chunk *c = getFreeUserChunk();
+
+  c->data[0] = 1;
+
+  if (c != NULL) {
+
+      if (sendMessageToPort(c, p, c->data, 1, everybodyStopNow,(GenericHandler)&freeMyChunk) == 0) {
+          freeChunk(c);
+          return 0;
+        }
+      }
+  return 1;
+}
+
+byte  everybodyStopNow(void){
+  if (thisChunk == NULL) return 0;
+  byte sender = faceNum(thisChunk);
+
+
+  if (fpos <= 8 && fpos >= 0 && bigShaq != 1){
+
+    bigShaq = 1;
+
+    for (uint8_t p=0; p<6; p++) {
+      if (p != sender && thisNeighborhood.n[p] != VACANT){
+        sendStop(p);
+      }
+    }
+  }
 
   return 1;
 }

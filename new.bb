@@ -1,11 +1,11 @@
 #include "block.bbh"
 #include "clock.bbh"
 
-
 threaddef #define UNKNOWN		255
 
 threadvar byte position[2];
 threadvar byte tab[2];
+threadvar byte posSpawner[2];
 
 threadvar  uint8_t lien;
 threadvar  uint8_t nbreWaitedAnswers;
@@ -15,10 +15,13 @@ threadvar byte fpos;
 threadvar byte forme;
 threadvar byte rota;
 threadvar byte countspawn;
-threadvar byte spawn;
 threadvar byte bigShaq;
 
-threadvar Timeout logTimeot;
+threadvar Timeout scrollTimeout;
+threadvar Timeout spawnTimeout;
+
+
+threadvar AccelData acc;
 
 threadvar byte sample[5][4][9];
 
@@ -29,6 +32,7 @@ threadvar  Chunk myChunks[MYCHUNKS];
 
  /***************/
  /** functions **/
+ /***************/
  byte goMessageHandler(void);
  byte sendBackChunk(PRef p);
  byte backMessageHandler(void);
@@ -37,6 +41,8 @@ threadvar  Chunk myChunks[MYCHUNKS];
  byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc);
  byte execOn(void);
  byte spawner(void);
+ byte floodSpawner(PRef p);
+ byte findSpawner(void);
  byte getSpawn(uint8_t donnee,uint8_t t);
  byte sendShape(PRef p);
  byte shapeMessageHandler(void);
@@ -51,11 +57,10 @@ threadvar  Chunk myChunks[MYCHUNKS];
  byte everybodyStopNow(void);
  byte blockedFinal (void);
 
-
 /******************************/
  void myMain(void) {
 
-   delayMS(200);
+   delayMS(300);
    lien=UNKNOWN;
    nbreWaitedAnswers=0;
    position[0] = 0;
@@ -67,6 +72,9 @@ threadvar  Chunk myChunks[MYCHUNKS];
  	 rota = UNKNOWN;
 
    bigShaq = UNKNOWN;
+
+   posSpawner[0] = UNKNOWN;
+   posSpawner[1] = UNKNOWN;
 
 
   sample[0][0][0]=1; sample[0][0][1]=1; sample[0][0][2]=1; sample[0][0][3]=1; sample[0][0][4]=1; sample[0][0][5]=1; sample[0][0][6]=1; sample[0][0][7]=1; sample[0][0][8]=1;
@@ -113,6 +121,12 @@ threadvar  Chunk myChunks[MYCHUNKS];
 
  while(1) {
          delayMS(100);
+
+         if (newAccelData()) {
+             acc = getAccelData();
+             printf("%d\n", acc.x);
+           }
+
 /*
          if (getGUID() == 11){
            bigShaq = 1;
@@ -206,7 +220,7 @@ byte sendCoordChunk(PRef p) {
       if (thisChunk == NULL) return 0;
       byte sender = faceNum(thisChunk);
 
-      delayMS(50);
+      delayMS(100);
 
 
       //***Je reçois des coordonnées identiques aux miennes***//
@@ -271,7 +285,7 @@ byte sendCoordChunk(PRef p) {
    if (thisChunk==NULL) return 0;
    uint8_t sender=faceNum(thisChunk);
 
-   delayMS(50);
+   delayMS(100);
 
    if ( (sender==xplusBorder && thisChunk->data[0] == (position[0]+1) && thisChunk->data[1] == position[1]) ||
         (sender==5-xplusBorder && thisChunk->data[0] == (position[0]-1) && thisChunk->data[1] == position[1]) ||
@@ -326,8 +340,6 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 		c->data[2] = donnee;
 		c->data[3] = fonc;
 
-
-
 		if (sendMessageToPort(c, p, c->data, 4, execOn, (GenericHandler)&freeMyChunk) == 0) {
 			freeChunk(c);
 			return 0;
@@ -377,7 +389,8 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 
       if (fonc == 166)
         spawner();
-
+    /*else if (fonc == 166 && donnee != 0)
+        spawner(donnee)*/
 }
 
 			return 1;
@@ -385,7 +398,6 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 
 byte getSpawn(uint8_t donnee, uint8_t t){
 
-  //printf("%d, %s\n", (int)getGUID(), "rentrée dans fct1");
 
   if (t == 1){
     tab[0] = (donnee/2);
@@ -396,17 +408,57 @@ byte getSpawn(uint8_t donnee, uint8_t t){
     countspawn++;
   }
 
-
-
-    if (countspawn == 2){
-    delayMS(50);
-      sendExecOn(WEST,127+tab[0],126+tab[1],0,166);
-      return 0;
+  if (countspawn == 2){
+  delayMS(50);
+  posSpawner[0] = 127+tab[0];
+  posSpawner[1] = 126+tab[1];
+  for (uint8_t p=0; p<6; p++) {
+      if (thisNeighborhood.n[p] != VACANT)
+        floodSpawner(p);
+      }
   }
-  return 1;
 
+  return 1;
 }
 
+byte floodSpawner(PRef p){
+  Chunk *c = getFreeUserChunk();
+
+  c->data[0]=posSpawner[0];
+  c->data[1]=posSpawner[1];
+
+  if (c != NULL) {
+
+      if (sendMessageToPort(c, p, c->data, 2, findSpawner,(GenericHandler)&freeMyChunk) == 0) {
+          freeChunk(c);
+          return 0;
+        }
+  }
+
+  return 1;
+}
+
+
+byte findSpawner(void){
+  if (thisChunk == NULL) return 0;
+  byte sender = faceNum(thisChunk);
+
+  if (posSpawner[0] == UNKNOWN){
+    posSpawner[0] = thisChunk->data[0];
+    posSpawner[1] = thisChunk->data[1];
+
+    if (position[0] == posSpawner[0] && position[1] == posSpawner[1])
+      spawner();
+    else {
+      for (uint8_t p=0; p<6; p++) {
+          if (p != sender && thisNeighborhood.n[p] != VACANT)
+            floodSpawner(p);
+      }
+    }
+  }
+
+  return 1;
+}
 
 byte spawner(void){
 
@@ -414,9 +466,19 @@ byte spawner(void){
 
   if (thisNeighborhood.n[UP] != VACANT)
   miseAZero(UP);
-  fpos = 1;
-  forme = 3;
-  rota = 2;
+  AccelData acc = getAccelData();
+  if (acc.x >= 7)
+    fpos = 0;
+  else if (acc.x <= -7)
+    fpos = 2;
+  else
+    fpos = 1;
+
+
+  if (position[0] == posSpawner[0] && position[1] == posSpawner[1]){
+    forme = rand() % 5;
+    rota = rand() % 4;
+  }
 
   if (sample[forme][rota][fpos] == 1)
     setColor(YELLOW);
@@ -424,13 +486,12 @@ byte spawner(void){
     setColor(WHITE);
 
       for (uint8_t p=0; p<6; p++) {
-          if (thisNeighborhood.n[p] != VACANT) {
+          if (thisNeighborhood.n[p] != VACANT)
               sendShape(p);
-          }
       }
+    }
 
   return 1;
-  }
 }
 
 byte sendShape(PRef p) {
@@ -467,7 +528,7 @@ byte sendShape(PRef p) {
       byte sender = faceNum(thisChunk);
 
 
-      if (fpos != thisChunk->data[2]){
+      if (fpos != thisChunk->data[2] && bigShaq != 1){
         forme = thisChunk->data[0];
         rota = thisChunk->data[1];
         fpos = thisChunk->data[2];
@@ -489,12 +550,10 @@ byte sendShape(PRef p) {
 
               blockedCheck(DOWN);
 
-
-
               if (fpos == 4){
-                logTimeot.callback = (GenericHandler)(&spawner);
-                logTimeot.calltime = getTime() + 1000;
-                registerTimeout(&logTimeot);
+                scrollTimeout.callback = (GenericHandler)(&spawner);
+                scrollTimeout.calltime = getTime() + 3000;
+                registerTimeout(&scrollTimeout);
               }
 
               if (fpos == 0 || fpos == 1 || fpos == 2){
@@ -544,6 +603,7 @@ byte areYouBlocked(PRef p){
           return 0;
         }
       }
+
 return 1;
 }
 
@@ -633,8 +693,22 @@ byte  everybodyStopNow(void){
 
 
   if (fpos <= 8 && fpos >= 0 && bigShaq != 1){
+    if (sample[forme][rota][fpos] == 1)
+      bigShaq = 1;
 
-    bigShaq = 1;
+    if (fpos == 1 && (posSpawner[1] - position[1]) >= 3){
+      delayMS(1000);
+      sendExecOn(UP, posSpawner[0], posSpawner[1], 0, 166);
+    }
+    /*else if (fpos == 1 && (posSpawner[1] - position[1]) < 3) {
+      delayMS(1000);
+      sendExecOn(UP, posSpawner[0], , 0, 166);
+    }*/
+
+    fpos = UNKNOWN;
+    forme = UNKNOWN;
+    rota = UNKNOWN;
+
 
     for (uint8_t p=0; p<6; p++) {
       if (p != sender && thisNeighborhood.n[p] != VACANT){

@@ -1,5 +1,6 @@
 #include "block.bbh"
 #include "clock.bbh"
+#include "math.h"
 
 threaddef #define UNKNOWN		255
 
@@ -21,9 +22,8 @@ threadvar Timeout scrollTimeout;
 threadvar Timeout spawnTimeout;
 
 
-threadvar AccelData acc;
-
 threadvar byte sample[5][4][9];
+threadvar byte couleurForme[5][4];
 
 
 threaddef  #define MYCHUNKS 12
@@ -55,12 +55,13 @@ threadvar  Chunk myChunks[MYCHUNKS];
  byte blockedRequest (void);
  byte sendStop(PRef p);
  byte everybodyStopNow(void);
- byte blockedFinal (void);
+ byte blockedFinal(void);
+ byte alea(void);
 
 /******************************/
  void myMain(void) {
 
-   delayMS(300);
+   delayMS(200);
    lien=UNKNOWN;
    nbreWaitedAnswers=0;
    position[0] = 0;
@@ -102,6 +103,11 @@ threadvar  Chunk myChunks[MYCHUNKS];
  	sample[4][2][0]=0; sample[4][2][1]=1; sample[4][2][2]=0; sample[4][2][3]=0; sample[4][2][4]=1; sample[4][2][5]=0; sample[4][2][6]=0; sample[4][2][7]=1; sample[4][2][8]=0;
  	sample[4][3][0]=0; sample[4][3][1]=0; sample[4][3][2]=0; sample[4][3][3]=1; sample[4][3][4]=1; sample[4][3][5]=1; sample[4][3][6]=0; sample[4][3][7]=0; sample[4][3][8]=0;
 
+  couleurForme[0][0] = 40; couleurForme[0][1] = 255; couleurForme[0][2] = 40; couleurForme[0][3] = 255;
+  couleurForme[1][0] = 75; couleurForme[1][1] = 0; couleurForme[1][2] = 255; couleurForme[1][3] = 255;
+  couleurForme[2][0] = 255; couleurForme[2][1] = 255; couleurForme[2][2] = 5; couleurForme[2][3] = 255;
+  couleurForme[3][0] = 255; couleurForme[3][1] = 9; couleurForme[3][2] = 33; couleurForme[3][3] = 255;
+  couleurForme[4][0] = 231; couleurForme[4][1] = 61; couleurForme[4][2] = 1; couleurForme[4][3] = 255;
 
 
    if (thisNeighborhood.n[DOWN] == VACANT && thisNeighborhood.n[EAST] == VACANT) {
@@ -122,17 +128,7 @@ threadvar  Chunk myChunks[MYCHUNKS];
  while(1) {
          delayMS(100);
 
-         if (newAccelData()) {
-             acc = getAccelData();
-             printf("%d\n", acc.x);
-           }
 
-/*
-         if (getGUID() == 11){
-           bigShaq = 1;
-           setColor(YELLOW);
-         }
-*/
    }
 }
 
@@ -220,7 +216,9 @@ byte sendCoordChunk(PRef p) {
       if (thisChunk == NULL) return 0;
       byte sender = faceNum(thisChunk);
 
+      #ifdef BBSIM
       delayMS(100);
+      #endif
 
 
       //***Je reçois des coordonnées identiques aux miennes***//
@@ -280,12 +278,13 @@ byte sendCoordChunk(PRef p) {
 
 
 
-
  byte backMessageHandler(void) {
    if (thisChunk==NULL) return 0;
    uint8_t sender=faceNum(thisChunk);
 
-   delayMS(100);
+   #ifdef BBSIM
+   delayMS(300);
+   #endif
 
    if ( (sender==xplusBorder && thisChunk->data[0] == (position[0]+1) && thisChunk->data[1] == position[1]) ||
         (sender==5-xplusBorder && thisChunk->data[0] == (position[0]-1) && thisChunk->data[1] == position[1]) ||
@@ -295,14 +294,20 @@ byte sendCoordChunk(PRef p) {
    nbreWaitedAnswers--;
 
    if (nbreWaitedAnswers==0 && lien == UNKNOWN){
-     setColor(YELLOW);
+     setLED(0,0,0,0);
+     #ifdef BBSIM
+     setColor(WHITE);
+     #endif
    }
 
 
 
    if (nbreWaitedAnswers==0 && lien != UNKNOWN) {
 
-     setColor(AQUA);
+     setLED(0,0,0,0);
+     #ifdef BBSIM
+     setColor(WHITE);
+     #endif
      sendBackChunk(lien);
 
      if (thisNeighborhood.n[WEST] == VACANT && thisNeighborhood.n[DOWN] == VACANT ){
@@ -331,7 +336,10 @@ byte sendCoordChunk(PRef p) {
 byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 	Chunk *c = getFreeUserChunk();
 
-    delayMS(50);
+  #ifdef BBSIM
+  delayMS(50);
+  #endif
+
 
     if (c!=NULL) {
 
@@ -360,7 +368,9 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 
       //printf("%d, (%d;%d), %d, %d\n",(int)getGUID(),receiver[0],receiver[1], donnee, fonc);
 
+      #ifdef BBSIM
       delayMS(50);
+      #endif
 
 			if (position[0] != receiver[0]){
 
@@ -409,7 +419,10 @@ byte getSpawn(uint8_t donnee, uint8_t t){
   }
 
   if (countspawn == 2){
-  delayMS(50);
+
+    #ifdef BBSIM
+    delayMS(50);
+    #endif
   posSpawner[0] = 127+tab[0];
   posSpawner[1] = 126+tab[1];
   for (uint8_t p=0; p<6; p++) {
@@ -464,26 +477,42 @@ byte spawner(void){
 
   if (bigShaq == UNKNOWN){
 
-  if (thisNeighborhood.n[UP] != VACANT)
-  miseAZero(UP);
   AccelData acc = getAccelData();
-  if (acc.x >= 7)
-    fpos = 0;
-  else if (acc.x <= -7)
-    fpos = 2;
-  else
+
+  if (acc.x >= 7 && (((posSpawner[0] + 50) - position[0] < 51) || (((forme == 1 && rota == 0) ||
+  (forme == 2 && rota == 2) || (forme == 3 && rota == 1) || (forme == 4 && rota == 0) ||
+  (forme == 4 && rota == 2)) && ((posSpawner[0] + 50) - position[0] < 52)))) { // + 50 pour eviter soucis BYTE ( 0 -1 = 255)
+      fpos = 5;
+      //if (thisNeighborhood.n[WEST] != VACANT)
+        miseAZero(WEST);
+  }
+  else if (acc.x <= 7 && (((posSpawner[0] + 50) - position[0] > 49) || (((forme == 1 && rota == 2) ||
+  (forme == 2 && rota == 0) || (forme == 3 && rota == 3) || (forme == 4 && rota == 0) ||
+  (forme == 4 && rota == 2)) && ((posSpawner[0] + 50) - position[0] > 48)))) { // + 50 pour eviter soucis BYTE ( 0 -1 = 255)
+      fpos = 3;
+      //if (thisNeighborhood.n[EAST] != VACANT)
+        miseAZero(EAST);
+  }
+  else {
     fpos = 1;
+    if (thisNeighborhood.n[UP] != VACANT)
+      miseAZero(UP);
+  }
 
 
   if (position[0] == posSpawner[0] && position[1] == posSpawner[1]){
-    forme = rand() % 5;
-    rota = rand() % 4;
+    forme = alea() % 5;
+    rota = alea() % 4;
   }
 
   if (sample[forme][rota][fpos] == 1)
-    setColor(YELLOW);
-  else
+    setLED(couleurForme[forme][0], couleurForme[forme][1], couleurForme[forme][2], couleurForme[forme][3]);
+  else{
+    setLED(255,255,255,64);
+    #ifdef BBSIM
     setColor(WHITE);
+    #endif
+  }
 
       for (uint8_t p=0; p<6; p++) {
           if (thisNeighborhood.n[p] != VACANT)
@@ -536,9 +565,10 @@ byte sendShape(PRef p) {
 
 
         if (sample[forme][rota][fpos] == 1)
-          setColor(YELLOW);
+          setLED(couleurForme[forme][0], couleurForme[forme][1], couleurForme[forme][2], couleurForme[forme][3]);
 				else
-					setColor(WHITE);
+          setLED(255,255,255,64);
+
 
 
         for (uint8_t p=0; p<6; p++) {
@@ -552,14 +582,14 @@ byte sendShape(PRef p) {
 
               if (fpos == 4){
                 scrollTimeout.callback = (GenericHandler)(&spawner);
-                scrollTimeout.calltime = getTime() + 3000;
+                scrollTimeout.calltime = getTime() + 1500;
                 registerTimeout(&scrollTimeout);
               }
 
-              if (fpos == 0 || fpos == 1 || fpos == 2){
+            /*  if (fpos == 0 || fpos == 1 || fpos == 2){
                 if (thisNeighborhood.n[UP] != VACANT)
                 miseAZero(UP);
-              }
+              }*/
         }
 
       return 1;
@@ -585,7 +615,25 @@ byte miseAZero(PRef p){
 byte miseAZeroMessageHandler(void){
   if (thisChunk == NULL) return 0;
 
-  setColor(AQUA);
+  if (fpos == 1){
+    if (thisNeighborhood.n[EAST] != VACANT)
+      miseAZero(EAST);
+    if (thisNeighborhood.n[WEST] != VACANT)
+      miseAZero(WEST);
+  }
+
+  else if (fpos == 3 || fpos == 5){
+    if (thisNeighborhood.n[UP] != VACANT)
+      miseAZero(UP);
+    if (thisNeighborhood.n[DOWN] != VACANT)
+      miseAZero(DOWN);
+  }
+
+
+  setLED(0,0,0,0);
+  #ifdef BBSIM
+  setColor(WHITE);
+  #endif
   fpos = UNKNOWN;
 
   return 1;
@@ -718,4 +766,14 @@ byte  everybodyStopNow(void){
   }
 
   return 1;
+}
+
+byte alea(void){
+
+  AccelData acc = getAccelData();
+
+  long nombre = exp(acc.x)+exp(acc.y)+exp(acc.z);
+
+  return nombre;
+
 }

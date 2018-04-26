@@ -7,6 +7,7 @@ threaddef #define UNKNOWN		255
 threadvar byte position[2];
 threadvar byte tab[2];
 threadvar byte posSpawner[2];
+threadvar byte delCouleur[4];
 
 threadvar  uint8_t lien;
 threadvar  uint8_t nbreWaitedAnswers;
@@ -19,7 +20,8 @@ threadvar byte countspawn;
 threadvar byte bigShaq;
 
 threadvar Timeout scrollTimeout;
-threadvar Timeout spawnTimeout;
+//threadvar Timeout spawnTimeout;
+threadvar Timeout eraseTimeout;
 
 
 threadvar byte sample[5][4][9];
@@ -51,12 +53,19 @@ threadvar  Chunk myChunks[MYCHUNKS];
  byte miseAZeroMessageHandler(void);
  byte areYouBlocked(PRef p);
  byte blockedAnswer(PRef p);
- byte blockedCheck (PRef p);
+ byte blockedCheck (PRef pig);
  byte blockedRequest (void);
  byte sendStop(PRef p);
  byte everybodyStopNow(void);
  byte blockedFinal(void);
  byte alea(void);
+ byte lineCompletedTest(void);
+ byte lineCompletedTestHandler(void);
+ byte lineErase(void);
+ byte sendLineDown(void);
+ byte delDownHandler (void);
+ byte sendDelDown(void);
+ byte lineDownHandler(void);
 
 /******************************/
  void myMain(void) {
@@ -77,11 +86,23 @@ threadvar  Chunk myChunks[MYCHUNKS];
    posSpawner[0] = UNKNOWN;
    posSpawner[1] = UNKNOWN;
 
+   // put into standby mode to update registers
+   setAccelRegister(0x07, 0x18);
 
-  sample[0][0][0]=1; sample[0][0][1]=1; sample[0][0][2]=1; sample[0][0][3]=1; sample[0][0][4]=1; sample[0][0][5]=1; sample[0][0][6]=1; sample[0][0][7]=1; sample[0][0][8]=1;
- 	sample[0][1][0]=1; sample[0][1][1]=1; sample[0][1][2]=1; sample[0][1][3]=1; sample[0][1][4]=1; sample[0][1][5]=1; sample[0][1][6]=1; sample[0][1][7]=1; sample[0][1][8]=1;
- 	sample[0][2][0]=1; sample[0][2][1]=1; sample[0][2][2]=1; sample[0][2][3]=1; sample[0][2][4]=1; sample[0][2][5]=1; sample[0][2][6]=1; sample[0][2][7]=1; sample[0][2][8]=1;
- 	sample[0][3][0]=1; sample[0][3][1]=1; sample[0][3][2]=1; sample[0][3][3]=1; sample[0][3][4]=1; sample[0][3][5]=1; sample[0][3][6]=1; sample[0][3][7]=1; sample[0][3][8]=1;
+   // every measurement triggers an interrupt
+   setAccelRegister(0x06, 0x10);
+
+   // set filter rate
+   setAccelRegister(0x08, 0x00);
+
+   // enable accelerometer
+   setAccelRegister(0x07, 0x19);
+
+
+  sample[0][0][0]=1; sample[0][0][1]=1; sample[0][0][2]=0; sample[0][0][3]=1; sample[0][0][4]=1; sample[0][0][5]=0; sample[0][0][6]=0; sample[0][0][7]=0; sample[0][0][8]=0;
+ 	sample[0][1][0]=1; sample[0][1][1]=1; sample[0][1][2]=0; sample[0][1][3]=1; sample[0][1][4]=1; sample[0][1][5]=0; sample[0][1][6]=0; sample[0][1][7]=0; sample[0][1][8]=0;
+ 	sample[0][2][0]=1; sample[0][2][1]=1; sample[0][2][2]=0; sample[0][2][3]=1; sample[0][2][4]=1; sample[0][2][5]=0; sample[0][2][6]=0; sample[0][2][7]=0; sample[0][2][8]=0;
+ 	sample[0][3][0]=1; sample[0][3][1]=1; sample[0][3][2]=0; sample[0][3][3]=1; sample[0][3][4]=1; sample[0][3][5]=0; sample[0][3][6]=0; sample[0][3][7]=0; sample[0][3][8]=0;
 
  	sample[1][0][0]=0; sample[1][0][1]=1; sample[1][0][2]=0; sample[1][0][3]=0; sample[1][0][4]=1; sample[1][0][5]=0; sample[1][0][6]=0; sample[1][0][7]=1; sample[1][0][8]=1;
  	sample[1][1][0]=0; sample[1][1][1]=0; sample[1][1][2]=0; sample[1][1][3]=1; sample[1][1][4]=1; sample[1][1][5]=1; sample[1][1][6]=1; sample[1][1][7]=0; sample[1][1][8]=0;
@@ -295,6 +316,8 @@ byte sendCoordChunk(PRef p) {
 
    if (nbreWaitedAnswers==0 && lien == UNKNOWN){
      setLED(0,0,0,0);
+     delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
+
      #ifdef BBSIM
      setColor(WHITE);
      #endif
@@ -305,6 +328,8 @@ byte sendCoordChunk(PRef p) {
    if (nbreWaitedAnswers==0 && lien != UNKNOWN) {
 
      setLED(0,0,0,0);
+     delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
+
      #ifdef BBSIM
      setColor(WHITE);
      #endif
@@ -372,6 +397,16 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
       delayMS(50);
       #endif
 
+      if (donnee > 100){
+
+        if (fonc == 178 && donnee == 101){
+          eraseTimeout.callback = (GenericHandler)(&lineErase);
+          eraseTimeout.calltime = getTime() + 1000;
+          registerTimeout(&eraseTimeout);
+        }
+
+      }
+
 			if (position[0] != receiver[0]){
 
 				if (position[0] < receiver[0] && thisNeighborhood.n[WEST] != VACANT)
@@ -399,6 +434,10 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 
       if (fonc == 166)
         spawner();
+
+      if (fonc == 177 && bigShaq == 1){
+        lineCompletedTest();
+      }
     /*else if (fonc == 166 && donnee != 0)
         spawner(donnee)*/
 }
@@ -479,14 +518,14 @@ byte spawner(void){
 
   AccelData acc = getAccelData();
 
-  if (acc.x >= 7 && (((posSpawner[0] + 50) - position[0] < 51) || (((forme == 1 && rota == 0) ||
+  if (acc.x >= 8 && (((posSpawner[0] + 50) - position[0] < 51) || (((forme == 1 && rota == 0) ||
   (forme == 2 && rota == 2) || (forme == 3 && rota == 1) || (forme == 4 && rota == 0) ||
   (forme == 4 && rota == 2)) && ((posSpawner[0] + 50) - position[0] < 52)))) { // + 50 pour eviter soucis BYTE ( 0 -1 = 255)
       fpos = 5;
       //if (thisNeighborhood.n[WEST] != VACANT)
         miseAZero(WEST);
   }
-  else if (acc.x <= 7 && (((posSpawner[0] + 50) - position[0] > 49) || (((forme == 1 && rota == 2) ||
+  else if (acc.x <= -8 && (((posSpawner[0] + 50) - position[0] > 49) || (((forme == 1 && rota == 2) ||
   (forme == 2 && rota == 0) || (forme == 3 && rota == 3) || (forme == 4 && rota == 0) ||
   (forme == 4 && rota == 2)) && ((posSpawner[0] + 50) - position[0] > 48)))) { // + 50 pour eviter soucis BYTE ( 0 -1 = 255)
       fpos = 3;
@@ -500,15 +539,17 @@ byte spawner(void){
   }
 
 
-  if (position[0] == posSpawner[0] && position[1] == posSpawner[1]){
+  if (position[0] == posSpawner[0] && position[1] == posSpawner[1] && forme == UNKNOWN){
     forme = alea() % 5;
     rota = alea() % 4;
   }
 
-  if (sample[forme][rota][fpos] == 1)
+  if (sample[forme][rota][fpos] == 1){
     setLED(couleurForme[forme][0], couleurForme[forme][1], couleurForme[forme][2], couleurForme[forme][3]);
-  else{
-    setLED(255,255,255,64);
+    delCouleur[0] = couleurForme[forme][0]; delCouleur[1] = couleurForme[forme][1]; delCouleur[2] = couleurForme[forme][2]; delCouleur[3] = couleurForme[forme][3];
+  }
+  else {
+    setLED(0, 0, 0, 0);
     #ifdef BBSIM
     setColor(WHITE);
     #endif
@@ -564,10 +605,12 @@ byte sendShape(PRef p) {
 
 
 
-        if (sample[forme][rota][fpos] == 1)
+        if (sample[forme][rota][fpos] == 1){
           setLED(couleurForme[forme][0], couleurForme[forme][1], couleurForme[forme][2], couleurForme[forme][3]);
+          delCouleur[0] = couleurForme[forme][0]; delCouleur[1] = couleurForme[forme][1]; delCouleur[2] = couleurForme[forme][2]; delCouleur[3] = couleurForme[forme][3];
+        }
 				else
-          setLED(255,255,255,64);
+          setLED(0, 0, 0, 0);
 
 
 
@@ -586,10 +629,6 @@ byte sendShape(PRef p) {
                 registerTimeout(&scrollTimeout);
               }
 
-            /*  if (fpos == 0 || fpos == 1 || fpos == 2){
-                if (thisNeighborhood.n[UP] != VACANT)
-                miseAZero(UP);
-              }*/
         }
 
       return 1;
@@ -631,10 +670,13 @@ byte miseAZeroMessageHandler(void){
 
 
   setLED(0,0,0,0);
+  delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
   #ifdef BBSIM
   setColor(WHITE);
   #endif
   fpos = UNKNOWN;
+  forme = UNKNOWN;
+  rota = UNKNOWN;
 
   return 1;
 }
@@ -675,14 +717,14 @@ byte blockedAnswer(PRef p){
 }
 
 
-byte blockedCheck (PRef p){
+byte blockedCheck (PRef pig){
 
 if (sample[forme][rota][fpos] == 1){
 
-    if (thisNeighborhood.n[p] != VACANT)
-      areYouBlocked(p);
+    if (thisNeighborhood.n[pig] != VACANT)
+      areYouBlocked(pig);
 
-    else if (thisNeighborhood.n[p] == VACANT){
+    else if (thisNeighborhood.n[pig] == VACANT){
       for (uint8_t p=0; p<6; p++) {
         if (thisNeighborhood.n[p] != VACANT){
 
@@ -748,21 +790,21 @@ byte  everybodyStopNow(void){
       delayMS(1000);
       sendExecOn(UP, posSpawner[0], posSpawner[1], 0, 166);
     }
-    /*else if (fpos == 1 && (posSpawner[1] - position[1]) < 3) {
-      delayMS(1000);
-      sendExecOn(UP, posSpawner[0], , 0, 166);
-    }*/
-
-    fpos = UNKNOWN;
-    forme = UNKNOWN;
-    rota = UNKNOWN;
-
 
     for (uint8_t p=0; p<6; p++) {
       if (p != sender && thisNeighborhood.n[p] != VACANT){
         sendStop(p);
       }
     }
+
+    if (fpos == 1 || fpos == 4 || fpos == 7){
+      sendExecOn(EAST, 127, position[1], 2, 177);
+    }
+
+    fpos = UNKNOWN;
+    forme = UNKNOWN;
+    rota = UNKNOWN;
+
   }
 
   return 1;
@@ -772,8 +814,110 @@ byte alea(void){
 
   AccelData acc = getAccelData();
 
-  long nombre = exp(acc.x)+exp(acc.y)+exp(acc.z);
+  long nombre = exp(acc.x)+exp(acc.z)+getTime();
 
   return nombre;
 
+}
+
+byte lineCompletedTest(void){
+  Chunk *c = getFreeUserChunk();
+
+  c->data[0] = 1;
+
+  if (c != NULL) {
+
+      if (sendMessageToPort(c, WEST, c->data, 1, lineCompletedTestHandler,(GenericHandler)&freeMyChunk) == 0) {
+          freeChunk(c);
+          return 0;
+        }
+      }
+  return 1;
+}
+
+byte lineCompletedTestHandler(void){
+  if (thisChunk == NULL) return 0;
+
+  if (bigShaq == 1){
+    if (thisNeighborhood.n[WEST] != VACANT){
+      lineCompletedTest();
+      }
+    else if (position[0] == ((posSpawner[0] - 127) + posSpawner[0])) {
+      sendExecOn(EAST, 127, position[1], 101, 178);
+      eraseTimeout.callback = (GenericHandler)(&lineErase);
+      eraseTimeout.calltime = getTime() + 1000;
+      registerTimeout(&eraseTimeout);
+    }
+  }
+  return 1;
+}
+
+byte lineErase(void){
+  /*setColor(PURPLE);
+  delayMS(300);
+  setColor(WHITE);
+  delayMS(300);
+  setColor(PURPLE);
+  delayMS(300);*/
+  setLED(0, 0, 0, 0);
+  delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
+
+  bigShaq = UNKNOWN;
+
+  sendLineDown();
+
+  return 1;
+}
+
+byte sendLineDown(void){
+  Chunk *c = getFreeUserChunk();
+
+  c->data[0] = 1;
+
+  if (c != NULL) {
+
+      if (sendMessageToPort(c, UP, c->data, 1, lineDownHandler,(GenericHandler)&freeMyChunk) == 0) {
+          freeChunk(c);
+          return 0;
+        }
+      }
+  return 1;
+}
+
+byte lineDownHandler(void){
+  if (thisChunk == NULL) return 0;
+
+  sendDelDown();
+
+  if (bigShaq == 1){
+    sendLineDown();
+  }
+  return 1;
+}
+
+byte sendDelDown(void){
+  Chunk *c = getFreeUserChunk();
+
+  c->data[0] = delCouleur[0]; c->data[1] = delCouleur[1]; c->data[2] = delCouleur[2]; c->data[3] = delCouleur[3];
+
+  if (c != NULL) {
+
+      if (sendMessageToPort(c, DOWN, c->data, 4, delDownHandler,(GenericHandler)&freeMyChunk) == 0) {
+          freeChunk(c);
+          return 0;
+        }
+      }
+  return 1;
+}
+
+byte delDownHandler (void){
+  if (thisChunk == NULL) return 0;
+
+  if (thisChunk->data[3] != 0)
+    setLED(thisChunk->data[0], thisChunk->data[1], thisChunk->data[2], thisChunk->data[3]);
+  else
+    setLED(0, 0, 0, 0);
+    bigShaq = 0;
+
+  return 1;
 }

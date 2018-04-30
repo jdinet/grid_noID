@@ -436,7 +436,8 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
         spawner();
 
       if (fonc == 177 && bigShaq == 1){
-        lineCompletedTest();
+        if (thisNeighborhood.n[WEST] != VACANT)
+          lineCompletedTest();
       }
     /*else if (fonc == 166 && donnee != 0)
         spawner(donnee)*/
@@ -518,7 +519,19 @@ byte spawner(void){
 
   AccelData acc = getAccelData();
 
-  if (acc.x >= 8 && (((posSpawner[0] + 50) - position[0] < 51) || (((forme == 1 && rota == 0) ||
+  if (acc.z < 12 && forme != 0){
+    if (rota != 3)
+      rota++;
+    else
+      rota = 0;
+
+    scrollTimeout.callback = (GenericHandler)(&spawner);
+    scrollTimeout.calltime = getTime() + 1500;
+    registerTimeout(&scrollTimeout);
+  }
+
+
+  else if (acc.x >= 8 && (((posSpawner[0] + 50) - position[0] < 51) || (((forme == 1 && rota == 0) ||
   (forme == 2 && rota == 2) || (forme == 3 && rota == 1) || (forme == 4 && rota == 0) ||
   (forme == 4 && rota == 2)) && ((posSpawner[0] + 50) - position[0] < 52)))) { // + 50 pour eviter soucis BYTE ( 0 -1 = 255)
       fpos = 5;
@@ -527,7 +540,7 @@ byte spawner(void){
   }
   else if (acc.x <= -8 && (((posSpawner[0] + 50) - position[0] > 49) || (((forme == 1 && rota == 2) ||
   (forme == 2 && rota == 0) || (forme == 3 && rota == 3) || (forme == 4 && rota == 0) ||
-  (forme == 4 && rota == 2)) && ((posSpawner[0] + 50) - position[0] > 48)))) { // + 50 pour eviter soucis BYTE ( 0 -1 = 255)
+  (forme == 4 && rota == 2) || forme == 0) && ((posSpawner[0] + 50) - position[0] > 48)))) { // + 50 pour eviter soucis BYTE ( 0 -1 = 255)
       fpos = 3;
       //if (thisNeighborhood.n[EAST] != VACANT)
         miseAZero(EAST);
@@ -598,7 +611,7 @@ byte sendShape(PRef p) {
       byte sender = faceNum(thisChunk);
 
 
-      if (fpos != thisChunk->data[2] && bigShaq != 1){
+      if ((fpos != thisChunk->data[2] || rota != thisChunk->data[1]) && bigShaq != 1){
         forme = thisChunk->data[0];
         rota = thisChunk->data[1];
         fpos = thisChunk->data[2];
@@ -620,7 +633,8 @@ byte sendShape(PRef p) {
             sendShape(p);
           }
         }
-
+        AccelData acc = getAccelData();
+        if (acc.x <= 7 && acc.x >= -7)
               blockedCheck(DOWN);
 
               if (fpos == 4){
@@ -887,10 +901,9 @@ byte sendLineDown(void){
 byte lineDownHandler(void){
   if (thisChunk == NULL) return 0;
 
-  sendDelDown();
-
   if (bigShaq == 1){
-    sendLineDown();
+    sendDelDown();
+    lineErase();
   }
   return 1;
 }
@@ -913,11 +926,14 @@ byte sendDelDown(void){
 byte delDownHandler (void){
   if (thisChunk == NULL) return 0;
 
-  if (thisChunk->data[3] != 0)
+  if (thisChunk->data[3] != 0){
     setLED(thisChunk->data[0], thisChunk->data[1], thisChunk->data[2], thisChunk->data[3]);
-  else
+    bigShaq = 1;
+  }
+  else{
     setLED(0, 0, 0, 0);
-    bigShaq = 0;
+    bigShaq = UNKNOWN;
+  }
 
   return 1;
 }

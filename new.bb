@@ -20,7 +20,6 @@ threadvar byte countspawn;
 threadvar byte bigShaq;
 
 threadvar Timeout scrollTimeout;
-//threadvar Timeout spawnTimeout;
 threadvar Timeout eraseTimeout;
 
 
@@ -531,14 +530,14 @@ byte spawner(void){
   }
 
 
-  else if (acc.x >= 8 && (((posSpawner[0] + 50) - position[0] < 51) || (((forme == 1 && rota == 0) ||
+  else if (acc.x >= 7 && (((posSpawner[0] + 50) - position[0] < 51) || (((forme == 1 && rota == 0) ||
   (forme == 2 && rota == 2) || (forme == 3 && rota == 1) || (forme == 4 && rota == 0) ||
   (forme == 4 && rota == 2)) && ((posSpawner[0] + 50) - position[0] < 52)))) { // + 50 pour eviter soucis BYTE ( 0 -1 = 255)
       fpos = 5;
       //if (thisNeighborhood.n[WEST] != VACANT)
         miseAZero(WEST);
   }
-  else if (acc.x <= -8 && (((posSpawner[0] + 50) - position[0] > 49) || (((forme == 1 && rota == 2) ||
+  else if (acc.x <= -7 && (((posSpawner[0] + 50) - position[0] > 49) || (((forme == 1 && rota == 2) ||
   (forme == 2 && rota == 0) || (forme == 3 && rota == 3) || (forme == 4 && rota == 0) ||
   (forme == 4 && rota == 2) || forme == 0) && ((posSpawner[0] + 50) - position[0] > 48)))) { // + 50 pour eviter soucis BYTE ( 0 -1 = 255)
       fpos = 3;
@@ -553,8 +552,8 @@ byte spawner(void){
 
 
   if (position[0] == posSpawner[0] && position[1] == posSpawner[1] && forme == UNKNOWN){
-    forme = alea() % 5;
-    rota = alea() % 4;
+    forme = 4;
+    rota = 0;
   }
 
   if (sample[forme][rota][fpos] == 1){
@@ -639,7 +638,7 @@ byte sendShape(PRef p) {
 
               if (fpos == 4){
                 scrollTimeout.callback = (GenericHandler)(&spawner);
-                scrollTimeout.calltime = getTime() + 1500;
+                scrollTimeout.calltime = getTime() + 1000;
                 registerTimeout(&scrollTimeout);
               }
 
@@ -801,7 +800,7 @@ byte  everybodyStopNow(void){
       bigShaq = 1;
 
     if (fpos == 1 && (posSpawner[1] - position[1]) >= 3){
-      delayMS(1000);
+      //delayMS(1000);
       sendExecOn(UP, posSpawner[0], posSpawner[1], 0, 166);
     }
 
@@ -812,7 +811,7 @@ byte  everybodyStopNow(void){
     }
 
     if (fpos == 1 || fpos == 4 || fpos == 7){
-      sendExecOn(EAST, 127, position[1], 2, 177);
+      sendExecOn(UP, 127, position[1], 2, 177);
     }
 
     fpos = UNKNOWN;
@@ -853,14 +852,14 @@ byte lineCompletedTestHandler(void){
   if (thisChunk == NULL) return 0;
 
   if (bigShaq == 1){
-    if (thisNeighborhood.n[WEST] != VACANT){
-      lineCompletedTest();
-      }
-    else if (position[0] == ((posSpawner[0] - 127) + posSpawner[0])) {
+    if (position[0] == ((posSpawner[0] - 127) + posSpawner[0])){
       sendExecOn(EAST, 127, position[1], 101, 178);
       eraseTimeout.callback = (GenericHandler)(&lineErase);
       eraseTimeout.calltime = getTime() + 1000;
       registerTimeout(&eraseTimeout);
+      }
+    else {
+      lineCompletedTest();
     }
   }
   return 1;
@@ -933,6 +932,10 @@ byte delDownHandler (void){
   else{
     setLED(0, 0, 0, 0);
     bigShaq = UNKNOWN;
+  }
+
+  if (position[0] = 127){
+    sendExecOn(UP, 127, position[1]+1, 2, 177);
   }
 
   return 1;

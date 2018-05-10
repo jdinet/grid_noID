@@ -21,6 +21,7 @@ threadvar byte rota;
 threadvar byte countspawn;
 threadvar byte bigShaq;
 threadvar byte lineCounter;
+threadvar byte compteurAleat;
 
 
 threadvar Timeout scrollTimeout;
@@ -74,6 +75,7 @@ threadvar  Chunk myChunks[MYCHUNKS];
  void myMain(void) {
 
    delayMS(200);
+   compteurAleat = 0;
    lien=UNKNOWN;
    nbreWaitedAnswers=0;
    position[0] = 0;
@@ -134,9 +136,9 @@ threadvar  Chunk myChunks[MYCHUNKS];
   couleurForme[3][0] = 255; couleurForme[3][1] = 9; couleurForme[3][2] = 33; couleurForme[3][3] = 255;
   couleurForme[4][0] = 231; couleurForme[4][1] = 61; couleurForme[4][2] = 1; couleurForme[4][3] = 255;
 
-  topCouleur[0] = 0; topCouleur[1] = 255; topCouleur[2] = 255; topCouleur[3] = 128;
+  topCouleur[0] = 0; topCouleur[1] = 0; topCouleur[2] = 0; topCouleur[3] = 0;
 
-  delCouleur[0] = 255; delCouleur[1] = 255; delCouleur[2] = 255; delCouleur[3] = 255;
+  delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
 
 
 
@@ -156,7 +158,8 @@ threadvar  Chunk myChunks[MYCHUNKS];
 
 
  while(1) {
-         delayMS(100);
+
+         compteurAleat++;
 
 
    }
@@ -324,7 +327,7 @@ byte sendCoordChunk(PRef p) {
 
    if (nbreWaitedAnswers==0 && lien == UNKNOWN){
      setLED(0,0,0,0);
-     delCouleur[0] = 255; delCouleur[1] = 255; delCouleur[2] = 255; delCouleur[3] = 255;
+     delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
 
      #ifdef BBSIM
      setColor(WHITE);
@@ -336,8 +339,7 @@ byte sendCoordChunk(PRef p) {
    if (nbreWaitedAnswers==0 && lien != UNKNOWN) {
 
      setLED(0,0,0,0);
-     delCouleur[0] = 255; delCouleur[1] = 255; delCouleur[2] = 255; delCouleur[3] = 255;
-     //delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
+     delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
 
 
      #ifdef BBSIM
@@ -410,11 +412,11 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 
         if (fonc == 178){
           if (donnee <= 102)
-            eraseTimeout.calltime = getTime() + 1500;
+            eraseTimeout.calltime = getTime() + 500;
           else if (donnee <= 105)
-            eraseTimeout.calltime = getTime() + 1600;
+            eraseTimeout.calltime = getTime() + 700;
           else if (donnee <= 108)
-            eraseTimeout.calltime = getTime() + 1700;
+            eraseTimeout.calltime = getTime() + 900;
           eraseTimeout.callback = (GenericHandler)(&lineErase);
           registerTimeout(&eraseTimeout);
         }
@@ -449,26 +451,24 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
       if (fonc == 166)
         spawner();
 
-      if (fonc == 176 && lineCounter > 0 && donnee == 0)
+      if (fonc == 176 && lineCounter > 0 && donnee == 0){
         lineCounter--;
+      }
 
       if (fonc == 177 && position[0] == 127){
           lineCounter++;
           if (lineCounter == (2*(posSpawner[0] - 127) + 1)){
               sendExecOn(WEST, (2*(posSpawner[0] - 127) + 128), position[1], (100 + donnee), 178);
               if (donnee <= 2)
-                eraseTimeout.calltime = getTime() + 1500;
+                eraseTimeout.calltime = getTime() + 500;
               else if (donnee <= 5)
-                eraseTimeout.calltime = getTime() + 1600;
+                eraseTimeout.calltime = getTime() + 700;
               else if (donnee <= 8)
-                eraseTimeout.calltime = getTime() + 1700;
+                eraseTimeout.calltime = getTime() + 900;
               eraseTimeout.callback = (GenericHandler)(&lineErase);
               registerTimeout(&eraseTimeout);
-              lineCounter--;
           }
       }
-    /*else if (fonc == 166 && donnee != 0)
-        spawner(donnee)*/
 }
 
 			return 1;
@@ -559,14 +559,14 @@ byte spawner(void){
   }
 
 
-  else if (acc.x >= 7 && (((posSpawner[0] + 50) - position[0] < 51) || (((forme == 1 && rota == 0) ||
+  else if (acc.x >= 8 && (((posSpawner[0] + 50) - position[0] < 51) || (((forme == 1 && rota == 0) ||
   (forme == 2 && rota == 2) || (forme == 3 && rota == 1) || (forme == 4 && rota == 0) ||
   (forme == 4 && rota == 2)) && ((posSpawner[0] + 50) - position[0] < 52)))) { // + 50 pour eviter soucis BYTE ( 0 -1 = 255)
       fpos = 5;
       //if (thisNeighborhood.n[WEST] != VACANT)
         miseAZero(WEST);
   }
-  else if (acc.x <= -7 && (((posSpawner[0] + 50) - position[0] > 49) || (((forme == 1 && rota == 2) ||
+  else if (acc.x <= -8 && (((posSpawner[0] + 50) - position[0] > 49) || (((forme == 1 && rota == 2) ||
   (forme == 2 && rota == 0) || (forme == 3 && rota == 3) || (forme == 4 && rota == 0) ||
   (forme == 4 && rota == 2) || forme == 0) && ((posSpawner[0] + 50) - position[0] > 48)))) { // + 50 pour eviter soucis BYTE ( 0 -1 = 255)
       fpos = 3;
@@ -581,7 +581,7 @@ byte spawner(void){
 
 
   if (position[0] == posSpawner[0] && position[1] == posSpawner[1] && forme == UNKNOWN){
-    forme = alea() % 5;
+    forme = 4;/*alea() % 5;*/
     rota = alea() % 4;
   }
 
@@ -591,7 +591,7 @@ byte spawner(void){
   }
   else {
     setLED(0, 0, 0, 0);
-    delCouleur[0] = 255; delCouleur[1] = 255; delCouleur[2] = 255; delCouleur[3] = 255;
+    delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
     #ifdef BBSIM
     setColor(WHITE);
     #endif
@@ -651,9 +651,10 @@ byte sendShape(PRef p) {
           setLED(couleurForme[forme][0], couleurForme[forme][1], couleurForme[forme][2], couleurForme[forme][3]);
           delCouleur[0] = couleurForme[forme][0]; delCouleur[1] = couleurForme[forme][1]; delCouleur[2] = couleurForme[forme][2]; delCouleur[3] = couleurForme[forme][3];
         }
-				else
+				else {
           setLED(0, 0, 0, 0);
-          delCouleur[0] = 255; delCouleur[1] = 255; delCouleur[2] = 255; delCouleur[3] = 255;
+          delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
+        }
 
 
 
@@ -714,7 +715,7 @@ byte miseAZeroMessageHandler(void){
 
 
   setLED(0,0,0,0);
-  delCouleur[0] = 255; delCouleur[1] = 255; delCouleur[2] = 255; delCouleur[3] = 255;
+  delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
   #ifdef BBSIM
   setColor(WHITE);
   #endif
@@ -854,14 +855,13 @@ byte  everybodyStopNow(void){
         if (lineCounter == (2*(posSpawner[0] - 127) + 1)){
             sendExecOn(WEST, (2*(posSpawner[0] - 127) + 128), position[1], (100 + fpos), 178);
             if (fpos <= 2)
-              eraseTimeout.calltime = getTime() + 1500;
+              eraseTimeout.calltime = getTime() + 500;
             else if (fpos <= 5)
-              eraseTimeout.calltime = getTime() + 1600;
+              eraseTimeout.calltime = getTime() + 700;
             else if (fpos <= 8)
-              eraseTimeout.calltime = getTime() + 1700;
+              eraseTimeout.calltime = getTime() + 900;
             eraseTimeout.callback = (GenericHandler)(&lineErase);
             registerTimeout(&eraseTimeout);
-            lineCounter--;
           }
       }
       else {
@@ -885,7 +885,7 @@ byte alea(void){
 
   AccelData acc = getAccelData();
 
-  long nombre = exp(acc.x)+exp(acc.z)+getTime();
+  long nombre = exp(acc.x)+exp(acc.z)+getTime()+compteurAleat;
 
   return nombre;
 
@@ -906,35 +906,31 @@ byte lineCompletedTest(void){
   return 1;
 }
 
-/*
-byte lineCompletedTestHandler(void){
-  if (thisChunk == NULL) return 0;
-
-  if (bigShaq == 1){
-    if (position[0] == ((posSpawner[0] - 127) + posSpawner[0])){
-      sendExecOn(EAST, 127, position[1], 101, 178);
-      eraseTimeout.callback = (GenericHandler)(&lineErase);
-      eraseTimeout.calltime = getTime() + 1000;
-      registerTimeout(&eraseTimeout);
-      }
-    else {
-      lineCompletedTest();
-    }
-  }
-  return 1;
-}
-*/
 
 byte lineErase(void){
+  delayMS(200);
   if (position[1] <= (posSpawner[1] - 1)){
     setLED(topCouleur[0], topCouleur[1], topCouleur[2], topCouleur[3]);
     delCouleur[0] = topCouleur[0]; delCouleur[1] = topCouleur[1]; delCouleur[2] = topCouleur[2]; delCouleur[3] = topCouleur[3];
     if (bigShaq == UNKNOWN && topCouleur[0] != 0){
       bigShaq = 1;
-      if (position[0] == 127)
+      if (position[0] == 127){
         lineCounter++;
+      }
       else {
         sendExecOn(EAST, 127, position[1], fpos, 177);
+
+
+        /*
+        #ifdef LOG_DEBUG
+        char s[25];
+        snprintf(s, 25*sizeof(char), "compteur++, %d, %d", position[0], position[1]);
+        s[149] = '\0';
+        printDebug(s);
+        #endif
+        */
+
+
       }
     }
     else if (bigShaq == 1 && topCouleur[0] == 0){
@@ -948,6 +944,10 @@ byte lineErase(void){
     }
 
     sendLineDown();
+
+    if (thisNeighborhood.n[DOWN] != VACANT)
+      sendDelDown();
+
   }
 
 
@@ -980,13 +980,6 @@ byte lineDownHandler(void){
 byte sendDelDown(void){
   Chunk *c = getFreeUserChunk();
 
-  #ifdef LOG_DEBUG
-  char s[25];
-  snprintf(s, 25*sizeof(char), "Send: %d, %d, %d", position[0], position[1], delCouleur[3]);
-  s[149] = '\0';
-  printDebug(s);
-  #endif
-
   c->data[0] = delCouleur[0]; c->data[1] = delCouleur[1]; c->data[2] = delCouleur[2]; c->data[3] = delCouleur[3];
 
   if (c != NULL) {
@@ -1007,27 +1000,6 @@ byte delDownHandler (void){
   topCouleur[2] = thisChunk->data[2];
   topCouleur[3] = thisChunk->data[3];
 
-  #ifdef LOG_DEBUG
-  char s[25];
-  snprintf(s, 25*sizeof(char), "Recep: %d, %d, %d", position[0], position[1], topCouleur[3]);
-  s[149] = '\0';
-  printDebug(s);
-  #endif
-
-/*
-  if (thisChunk->data[3] != 0){
-    setLED(thisChunk->data[0], thisChunk->data[1], thisChunk->data[2], thisChunk->data[3]);
-    bigShaq = 1;
-    sendExecOn(EAST, 127, position[1], fpos, 177);
-    //if (position[0] = 127)
-      //lineCompletedTest();
-  }
-  else {
-    setLED(0, 0, 0, 0);
-    delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
-    bigShaq = UNKNOWN;
-  }
-*/
 
   return 1;
 }

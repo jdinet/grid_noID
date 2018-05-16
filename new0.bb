@@ -22,10 +22,13 @@ threadvar byte countspawn;
 threadvar byte bigShaq;
 threadvar byte lineCounter;
 threadvar byte compteurAleat;
-
+threadvar byte freeLeft;
+threadvar byte freeRight;
+threadvar byte freeDown;
 
 threadvar Timeout scrollTimeout;
 threadvar Timeout eraseTimeout;
+threadvar Timeout checkDownTimeout;
 
 
 threadvar byte sample[5][4][9];
@@ -57,7 +60,7 @@ threadvar  Chunk myChunks[MYCHUNKS];
  byte miseAZeroMessageHandler(void);
  byte areYouBlocked(PRef p);
  byte blockedAnswer(PRef p);
- byte blockedCheck (PRef pig);
+ byte blockedCheck (PRef pork);
  byte blockedRequest (void);
  byte sendStop(PRef p);
  byte everybodyStopNow(void);
@@ -70,6 +73,9 @@ threadvar  Chunk myChunks[MYCHUNKS];
  byte delDownHandler (void);
  byte sendDelDown(void);
  byte lineDownHandler(void);
+ byte motionControl(PRef pork);
+ void timeLauncher(void);
+
 
 /******************************/
  void myMain(void) {
@@ -91,6 +97,10 @@ threadvar  Chunk myChunks[MYCHUNKS];
 
    posSpawner[0] = UNKNOWN;
    posSpawner[1] = UNKNOWN;
+
+   freeLeft = 0;
+   freeRight = 0;
+   freeDown = 0;
 
    // put into standby mode to update registers
    setAccelRegister(0x07, 0x18);
@@ -158,7 +168,7 @@ threadvar  Chunk myChunks[MYCHUNKS];
 
 
  while(1) {
-
+   delayMS(50);
          compteurAleat++;
 
 
@@ -412,11 +422,11 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 
         if (fonc == 178){
           if (donnee <= 102)
-            eraseTimeout.calltime = getTime() + 500;
+            eraseTimeout.calltime = getTime() + 300;
           else if (donnee <= 105)
-            eraseTimeout.calltime = getTime() + 700;
+            eraseTimeout.calltime = getTime() + 400;
           else if (donnee <= 108)
-            eraseTimeout.calltime = getTime() + 900;
+            eraseTimeout.calltime = getTime() + 500;
           eraseTimeout.callback = (GenericHandler)(&lineErase);
           registerTimeout(&eraseTimeout);
         }
@@ -460,15 +470,25 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
           if (lineCounter == (2*(posSpawner[0] - 127) + 1)){
               sendExecOn(WEST, (2*(posSpawner[0] - 127) + 128), position[1], (100 + donnee), 178);
               if (donnee <= 2)
-                eraseTimeout.calltime = getTime() + 500;
+                eraseTimeout.calltime = getTime() + 300;
               else if (donnee <= 5)
-                eraseTimeout.calltime = getTime() + 700;
+                eraseTimeout.calltime = getTime() + 400;
               else if (donnee <= 8)
-                eraseTimeout.calltime = getTime() + 900;
+                eraseTimeout.calltime = getTime() + 500;
               eraseTimeout.callback = (GenericHandler)(&lineErase);
               registerTimeout(&eraseTimeout);
           }
       }
+
+      if (fonc == 180 && fpos == 4){
+        if (donnee == 0)
+          freeDown = 1;
+        else if (donnee == 2)
+          freeLeft = 1;
+        else if (donnee == 3)
+          freeRight = 1;
+      }
+
 }
 
 			return 1;
@@ -543,22 +563,37 @@ byte findSpawner(void){
 
 byte spawner(void){
 
-  if (bigShaq == UNKNOWN){
-
   AccelData acc = getAccelData();
 
-  if (acc.z < 12 && forme != 0){
-    if (rota != 3)
-      rota++;
-    else
-      rota = 0;
 
-    scrollTimeout.callback = (GenericHandler)(&spawner);
-    scrollTimeout.calltime = getTime() + 1500;
-    registerTimeout(&scrollTimeout);
-  }
+  if (bigShaq == UNKNOWN){
+
+    if (acc.z < 12 && forme != 0){
+
+      rota = (rota + 1 ) % 4;
 
 
+      if (position[0]==127) {
+
+          fpos=3;
+
+      }
+      else if(position[0]==(2*(posSpawner[0] - 127)+ 127)) {
+
+          fpos=5;
+
+      }
+
+      else {
+
+        scrollTimeout.callback = (GenericHandler)(&spawner);
+        scrollTimeout.calltime = getTime() + 1000;
+        registerTimeout(&scrollTimeout);
+      }
+    }
+
+
+/*
   else if (acc.x >= 8 && (((posSpawner[0] + 50) - position[0] < 51) || (((forme == 1 && rota == 0) ||
   (forme == 2 && rota == 2) || (forme == 3 && rota == 1) || (forme == 4 && rota == 0) ||
   (forme == 4 && rota == 2)) && ((posSpawner[0] + 50) - position[0] < 52)))) { // + 50 pour eviter soucis BYTE ( 0 -1 = 255)
@@ -566,22 +601,54 @@ byte spawner(void){
       //if (thisNeighborhood.n[WEST] != VACANT)
         miseAZero(WEST);
   }
-  else if (acc.x <= -8 && (((posSpawner[0] + 50) - position[0] > 49) || (((forme == 1 && rota == 2) ||
-  (forme == 2 && rota == 0) || (forme == 3 && rota == 3) || (forme == 4 && rota == 0) ||
-  (forme == 4 && rota == 2) || forme == 0) && ((posSpawner[0] + 50) - position[0] > 48)))) { // + 50 pour eviter soucis BYTE ( 0 -1 = 255)
-      fpos = 3;
-      //if (thisNeighborhood.n[EAST] != VACANT)
-        miseAZero(EAST);
-  }
-  else {
+*/
+
+    else if (acc.x >= 7 && freeLeft != 1) {
+        fpos = 5;
+        if (thisNeighborhood.n[WEST] != VACANT)
+          miseAZero(WEST);
+    }
+
+
+    else if (acc.x <= -7 && freeRight != 1) {
+        fpos = 3;
+        if (thisNeighborhood.n[EAST] != VACANT)
+          miseAZero(EAST);
+    }
+
+
+/*
+- Implementer freeDown
+
+- If position=Down && freeDown != 1
+  --> sendStop
+
+- Globaliser accélérometre
+
+- Print putain de carré fpos == 2
+
+
+
+
+*/
+  else if (acc.x <= 6 && acc.x >= -6 && freeDown != 1) {
     fpos = 1;
     if (thisNeighborhood.n[UP] != VACANT)
       miseAZero(UP);
   }
 
+  else {
+    for (uint8_t p=0; p<6; p++) {
+      if (thisNeighborhood.n[p] != VACANT){
+
+        sendStop(p);
+      }
+    }
+  }
+
 
   if (position[0] == posSpawner[0] && position[1] == posSpawner[1] && forme == UNKNOWN){
-    forme = 4;/*alea() % 5;*/
+    forme = alea() % 5;
     rota = alea() % 4;
   }
 
@@ -601,6 +668,9 @@ byte spawner(void){
           if (thisNeighborhood.n[p] != VACANT)
               sendShape(p);
       }
+      freeLeft = 0;
+      freeRight = 0;
+      freeDown = 0;
     }
 
   return 1;
@@ -664,9 +734,19 @@ byte sendShape(PRef p) {
             sendShape(p);
           }
         }
-        AccelData acc = getAccelData();
-        if (acc.x <= 7 && acc.x >= -7)
-              blockedCheck(DOWN);
+
+
+          blockedCheck(EAST);
+
+
+          blockedCheck(WEST);
+
+
+          checkDownTimeout.callback = (GenericHandler)(&timeLauncher);
+          checkDownTimeout.calltime = getTime() + 700;
+          registerTimeout(&checkDownTimeout);
+
+
 
               if (fpos == 4){
                 scrollTimeout.callback = (GenericHandler)(&spawner);
@@ -679,6 +759,14 @@ byte sendShape(PRef p) {
       return 1;
 }
 
+void timeLauncher(void){
+
+  AccelData acc = getAccelData();
+
+  if (acc.x <= 6 && acc.x >= -6)
+    blockedCheck(DOWN);
+
+}
 
 byte miseAZero(PRef p){
   Chunk *c = getFreeUserChunk();
@@ -762,38 +850,56 @@ byte blockedAnswer(PRef p){
 }
 
 
-byte blockedCheck (PRef pig){
+byte blockedCheck (PRef pork){
 
 if (sample[forme][rota][fpos] == 1){
 
-    if (thisNeighborhood.n[pig] != VACANT)
-      areYouBlocked(pig);
+    if (thisNeighborhood.n[pork] != VACANT)
+      areYouBlocked(pork);
 
-    else if (thisNeighborhood.n[pig] == VACANT){
-      for (uint8_t p=0; p<6; p++) {
-        if (thisNeighborhood.n[p] != VACANT){
 
-          sendStop(p);
-        }
-      }
+    else if (thisNeighborhood.n[pork] == VACANT)
+      motionControl(pork);
+
     }
-  }
 
   return 1;
 }
 
+byte motionControl(PRef pork){
 
-byte blockedFinal (void){
-  if (thisChunk == NULL) return 0;
-    byte voisinState = thisChunk->data[0];
-
-    if (voisinState == 1){
-
-      for (uint8_t p=0; p<6; p++) {
-        if (thisNeighborhood.n[p] != VACANT)
-          sendStop(p);
+  if (pork == 2 || pork == 3 || pork == 0){
+    if (fpos <= 8 && fpos >= 0){
+      if (fpos == 4){
+        if (pork == 0)
+          freeDown = 1;
+        else if (pork == EAST)
+          freeLeft = 1;
+        else if (pork == WEST)
+          freeRight = 1;
+        return 1;
       }
+
+      int lapostionX = 0;
+      int lapostionY = 0;
+
+      if (fpos >= 0 && fpos <= 2){
+        lapostionY = -1;
+      }
+      else if (fpos >= 6 && fpos <= 8){
+        lapostionY = 1;
+      }
+
+      if (fpos == 0 || fpos == 3 || fpos == 6){
+        lapostionX = 1;
+      }
+      else if (fpos == 2 || fpos == 5 || fpos == 8){
+        lapostionX = -1;
+      }
+      sendExecOn((5-pork), (position[0]+lapostionX), (position[1]+lapostionY), pork, 180);
+
     }
+  }
 
   return 1;
 }
@@ -806,6 +912,20 @@ byte blockedRequest (void){
 
   return 1;
 }
+
+byte blockedFinal (void){
+  if (thisChunk == NULL) return 0;
+    byte voisinState = thisChunk->data[0];
+    byte sender = faceNum(thisChunk);
+
+    if (voisinState == 1)
+      motionControl(sender);
+
+
+  return 1;
+}
+
+
 
 byte sendStop(PRef p){
   Chunk *c = getFreeUserChunk();
@@ -855,11 +975,11 @@ byte  everybodyStopNow(void){
         if (lineCounter == (2*(posSpawner[0] - 127) + 1)){
             sendExecOn(WEST, (2*(posSpawner[0] - 127) + 128), position[1], (100 + fpos), 178);
             if (fpos <= 2)
-              eraseTimeout.calltime = getTime() + 500;
+              eraseTimeout.calltime = getTime() + 300;
             else if (fpos <= 5)
-              eraseTimeout.calltime = getTime() + 700;
+              eraseTimeout.calltime = getTime() + 400;
             else if (fpos <= 8)
-              eraseTimeout.calltime = getTime() + 900;
+              eraseTimeout.calltime = getTime() + 500;
             eraseTimeout.callback = (GenericHandler)(&lineErase);
             registerTimeout(&eraseTimeout);
           }
@@ -909,7 +1029,7 @@ byte lineCompletedTest(void){
 
 byte lineErase(void){
   delayMS(200);
-  if (position[1] <= (posSpawner[1] - 1)){
+  if (position[1] <= (posSpawner[1] - 1) && fpos == UNKNOWN){
     setLED(topCouleur[0], topCouleur[1], topCouleur[2], topCouleur[3]);
     delCouleur[0] = topCouleur[0]; delCouleur[1] = topCouleur[1]; delCouleur[2] = topCouleur[2]; delCouleur[3] = topCouleur[3];
     if (bigShaq == UNKNOWN && topCouleur[0] != 0){

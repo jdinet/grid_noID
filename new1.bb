@@ -10,6 +10,7 @@ threadvar byte tab[2];
 threadvar byte posSpawner[2];
 threadvar byte delCouleur[4];
 threadvar byte topCouleur[4];
+threadvar byte shapeValueLine[3];
 
 threadvar byte lien;
 threadvar byte nbreWaitedAnswers;
@@ -73,6 +74,8 @@ threadvar  Chunk myChunks[MYCHUNKS];
  byte sendDelDown(void);
  byte lineDownHandler(void);
  byte motionControl(PRef pork);
+ byte sendValueLineHandler(void);
+ byte sendValueLine(PRef p);
 
 
 /******************************/
@@ -125,8 +128,8 @@ threadvar  Chunk myChunks[MYCHUNKS];
  	sample[1][3][0]=0; sample[1][3][1]=0; sample[1][3][2]=1; sample[1][3][3]=1; sample[1][3][4]=1; sample[1][3][5]=1; sample[1][3][6]=0; sample[1][3][7]=0; sample[1][3][8]=0;
 
 //S
- 	sample[2][0][0]=1; sample[2][0][1]=0; sample[2][0][2]=0; sample[2][0][3]=1; sample[2][0][4]=1; sample[2][0][5]=0; sample[2][0][6]=0; sample[2][0][7]=1; sample[2][0][8]=0;
- 	sample[2][1][0]=0; sample[2][1][1]=1; sample[2][1][2]=1; sample[2][1][3]=1; sample[2][1][4]=1; sample[2][1][5]=0; sample[2][1][6]=0; sample[2][1][7]=0; sample[2][1][8]=0;
+ 	sample[2][0][0]=0; sample[2][0][1]=1; sample[2][0][2]=0; sample[2][0][3]=0; sample[2][0][4]=1; sample[2][0][5]=1; sample[2][0][6]=0; sample[2][0][7]=0; sample[2][0][8]=1;
+ 	sample[2][1][0]=0; sample[2][1][1]=0; sample[2][1][2]=0; sample[2][1][3]=0; sample[2][1][4]=1; sample[2][1][5]=1; sample[2][1][6]=1; sample[2][1][7]=1; sample[2][1][8]=0;
  	sample[2][2][0]=0; sample[2][2][1]=1; sample[2][2][2]=0; sample[2][2][3]=0; sample[2][2][4]=1; sample[2][2][5]=1; sample[2][2][6]=0; sample[2][2][7]=0; sample[2][2][8]=1;
  	sample[2][3][0]=0; sample[2][3][1]=0; sample[2][3][2]=0; sample[2][3][3]=0; sample[2][3][4]=1; sample[2][3][5]=1; sample[2][3][6]=1; sample[2][3][7]=1; sample[2][3][8]=0;
 
@@ -144,9 +147,9 @@ threadvar  Chunk myChunks[MYCHUNKS];
 
 //Z
   sample[5][0][0]=0; sample[5][0][1]=0; sample[5][0][2]=1; sample[5][0][3]=0; sample[5][0][4]=1; sample[5][0][5]=1; sample[5][0][6]=0; sample[5][0][7]=1; sample[5][0][8]=0;
- 	sample[5][1][0]=1; sample[5][1][1]=1; sample[5][1][2]=0; sample[5][1][3]=0; sample[5][1][4]=1; sample[5][1][5]=1; sample[5][1][6]=0; sample[5][1][7]=0; sample[5][1][8]=0;
- 	sample[5][2][0]=0; sample[5][2][1]=1; sample[5][2][2]=0; sample[5][2][3]=1; sample[5][2][4]=1; sample[5][2][5]=0; sample[5][2][6]=1; sample[5][2][7]=0; sample[5][2][8]=0;
- 	sample[5][3][0]=1; sample[5][3][1]=1; sample[5][3][2]=0; sample[5][3][3]=0; sample[5][3][4]=1; sample[5][3][5]=1; sample[5][3][6]=0; sample[5][3][7]=0; sample[5][3][8]=0;
+ 	sample[5][1][0]=0; sample[5][1][1]=0; sample[5][1][2]=0; sample[5][1][3]=1; sample[5][1][4]=1; sample[5][1][5]=0; sample[5][1][6]=0; sample[5][1][7]=1; sample[5][1][8]=1;
+ 	sample[5][2][0]=0; sample[5][2][1]=0; sample[5][2][2]=1; sample[5][2][3]=0; sample[5][2][4]=1; sample[5][2][5]=1; sample[5][2][6]=0; sample[5][2][7]=1; sample[5][2][8]=0;
+ 	sample[5][3][0]=0; sample[5][3][1]=0; sample[5][3][2]=0; sample[5][3][3]=1; sample[5][3][4]=1; sample[5][3][5]=0; sample[5][3][6]=0; sample[5][3][7]=1; sample[5][3][8]=1;
 
   //J
   sample[6][0][0]=0; sample[6][0][1]=1; sample[6][0][2]=0; sample[6][0][3]=0; sample[6][0][4]=1; sample[6][0][5]=0; sample[6][0][6]=1; sample[6][0][7]=1; sample[6][0][8]=0;
@@ -178,6 +181,12 @@ threadvar  Chunk myChunks[MYCHUNKS];
 
   delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
 
+  shapeValueLine[0] = 0; shapeValueLine[1] = 0; shapeValueLine[2] = 0;
+
+  #ifdef BBSIM
+  delCouleur[0] = 255; delCouleur[1] = 255; delCouleur[2] = 255; delCouleur[3] = 254;
+  #endif
+
 
 
    if (thisNeighborhood.n[DOWN] == VACANT && thisNeighborhood.n[EAST] == VACANT) {
@@ -196,9 +205,13 @@ threadvar  Chunk myChunks[MYCHUNKS];
 
 
  while(1) {
-   delayMS(50);
+   delayMS(500);
          //compteurAleat++;
+/*
+         AccelData acc = getAccelData();
 
+         printf("X: %d, Y: %d, Z: %d\n", acc.x, acc.y, acc.z);
+*/
 
    }
 }
@@ -368,7 +381,9 @@ byte sendCoordChunk(PRef p) {
      delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
 
      #ifdef BBSIM
-     setColor(WHITE);
+     setLED(255, 255, 255, 255);
+     //setColor(WHITE);
+     delCouleur[0] = 255; delCouleur[1] = 255; delCouleur[2] = 255; delCouleur[3] = 254;
      #endif
    }
 
@@ -381,6 +396,7 @@ byte sendCoordChunk(PRef p) {
 
      #ifdef BBSIM
      setColor(WHITE);
+     delCouleur[0] = 255; delCouleur[1] = 255; delCouleur[2] = 255; delCouleur[3] = 254;
      #endif
      sendBackChunk(lien);
 
@@ -495,23 +511,34 @@ byte sendExecOn(PRef p, byte px, byte py, byte donnee, byte fonc) {
 
       if (fonc == 176 && lineCounter > 0 && donnee == 0){
         lineCounter--;
+        printf("Je suis %d -- compteur = %d\n", position[1], lineCounter);
 
       }
 
       if (fonc == 177 && position[0] == 127){
-          lineCounter++;
+          lineCounter += donnee % 10;
+
+          printf("Je suis %d, %d compteur = %d\n", position[0], position[1], lineCounter);
+
+
 
           if (lineCounter == (2*(posSpawner[0] - 127) + 1)){
-              sendExecOn(WEST, (2*(posSpawner[0] - 127) + 127), position[1], (100 + donnee), 178);
-              if (donnee <= 2)
+
+            sendExecOn(UP, 127, (position[1] + 1), 0, 179);
+              sendExecOn(WEST, (2*(posSpawner[0] - 127) + 127), position[1], (100 + ((donnee / 10 + 1) * 2)), 178);
+              if (donnee / 10 <= 0)
                 eraseTimeout.calltime = getTime() + 300;
-              else if (donnee <= 5)
+              else if (donnee / 10 <= 1)
                 eraseTimeout.calltime = getTime() + 450;
-              else if (donnee <= 8)
+              else if (donnee / 10 <= 2)
                 eraseTimeout.calltime = getTime() + 600;
               eraseTimeout.callback = (GenericHandler)(&lineErase);
               registerTimeout(&eraseTimeout);
           }
+      }
+
+      if (fonc == 179 && position[0] == 127){
+        sendValueLine(DOWN);
       }
 
       if (fonc == 180 && fpos == 4){
@@ -681,6 +708,7 @@ byte spawner(void){
 
     #ifdef BBSIM
     setColor(WHITE);
+    delCouleur[0] = 255; delCouleur[1] = 255; delCouleur[2] = 255; delCouleur[3] = 254;
     #endif
   }
 
@@ -729,10 +757,17 @@ byte sendShape(PRef p) {
  byte shapeMessageHandler(void) {
       if (thisChunk == NULL) return 0;
       byte sender = faceNum(thisChunk);
-
+/*
+if bigshaq == 1 && sample[forme] == 0
+  then
+    test sample[forme][rota+1] == 1
+      if true
+        sendExecOn (freerotat == 1 to fpos = 4) ==> CF Fonc blockedcheck
+*/
 
       if (fpos != thisChunk->data[2] || rota != thisChunk->data[1]) {
-        if (bigShaq != 1) {
+
+        if (bigShaq != 1) { // --> Modif de conditions
         forme = thisChunk->data[0];
         rota = thisChunk->data[1];
         fpos = thisChunk->data[2];
@@ -749,6 +784,7 @@ byte sendShape(PRef p) {
 
           #ifdef BBSIM
           setColor(WHITE);
+          delCouleur[0] = 255; delCouleur[1] = 255; delCouleur[2] = 255; delCouleur[3] = 254;
           #endif
 
           #ifdef LOG_DEBUG
@@ -771,7 +807,7 @@ byte sendShape(PRef p) {
 
         if (fpos == 4){
           scrollTimeout.callback = (GenericHandler)(&spawner);
-          scrollTimeout.calltime = getTime() + 1000;
+          scrollTimeout.calltime = getTime() + 600;
           registerTimeout(&scrollTimeout);
         }
 
@@ -829,15 +865,9 @@ byte miseAZeroMessageHandler(void){
     setLED(0,0,0,0);
     delCouleur[0] = 0; delCouleur[1] = 0; delCouleur[2] = 0; delCouleur[3] = 0;
 
-    #ifdef LOG_DEBUG
-    char s[25];
-    snprintf(s, 25*sizeof(char), "X:%d,Y:%d, FIFTH",position[0] ,position[1]);
-    s[149] = '\0';
-    printDebug(s);
-    #endif
-
     #ifdef BBSIM
     setColor(WHITE);
+    delCouleur[0] = 255; delCouleur[1] = 255; delCouleur[2] = 255; delCouleur[3] = 254;
     #endif
     fpos = UNKNOWN;
     forme = UNKNOWN;
@@ -989,12 +1019,22 @@ byte  everybodyStopNow(void){
   byte sender = faceNum(thisChunk);
 
 
-  if (fpos == 1 && thisNeighborhood.n[DOWN] != VACANT){
-    sendStop(DOWN);
-  }
-
-
   if (fpos <= 8 && fpos >= 0 && bigShaq != 1){
+
+    if (fpos == 1 && thisNeighborhood.n[DOWN] != VACANT){
+      sendStop(DOWN);
+    }
+
+    if (fpos == 4){
+      for (uint8_t i=0; i<3; i++) {
+        for (uint8_t j=0; j<3; j++) {
+          if (sample[forme][rota][(i*3)+j] == 1) {
+            shapeValueLine[i]++;
+          }
+        }
+      }
+      printf("Je suis %d, %d valeurligne = %d, %d, %d\n", position[0], position[1], shapeValueLine[0], shapeValueLine[1], shapeValueLine[2]);
+    }
 
     if (sample[forme][rota][fpos] == 1){
       bigShaq = 1;
@@ -1009,40 +1049,47 @@ byte  everybodyStopNow(void){
         }
       }
     }
-
-    if (fpos <= 8 && fpos >= 0 && bigShaq == 1){
-      if (position[0] == 127){
-        lineCounter++;
-
-        if (lineCounter == (2*(posSpawner[0] - 127) + 1)){
-            sendExecOn(WEST, (2*(posSpawner[0] - 127) + 127), position[1], (100 + fpos), 178);
-            if (fpos <= 2)
-              eraseTimeout.calltime = getTime() + 300;
-            else if (fpos <= 5)
-              eraseTimeout.calltime = getTime() + 450;
-            else if (fpos <= 8)
-              eraseTimeout.calltime = getTime() + 600;
-            eraseTimeout.callback = (GenericHandler)(&lineErase);
-            registerTimeout(&eraseTimeout);
+    else {
+      if (position[0] != 127) {
+        for (uint8_t i = 0; i<3; i++) {
+          if (shapeValueLine[i] != 0){
+          sendExecOn(EAST, 127, ((position[1] + 1) - i), (shapeValueLine[i] + (10*i)), 177);
           }
+        }
       }
-      else {
-        sendExecOn(EAST, 127, position[1], fpos, 177);
+        else {
+          if (shapeValueLine[0] != 0)
+            sendExecOn(UP, 127, (position[1] + 1), shapeValueLine[0], 177);
 
-      }
+          lineCounter += shapeValueLine[1];
 
-      if (fpos == 4 && (posSpawner[1] - position[1]) >= 3){
-        sendExecOn(UP, posSpawner[0], posSpawner[1], 0, 166);
-      }
+          if (shapeValueLine[2] != 0)
+            sendExecOn(UP, 127, (position[1] - 1), (shapeValueLine[2] + 20), 177);
 
-    }
+            if (lineCounter == (2*((posSpawner[0] - 127) + 1))) {
+              sendExecOn(UP, 127, (position[1] + 1), 0, 179);
 
-    //if (thisNeighborhood.n[DOWN] != VACANT)
+
+              sendExecOn(WEST, (2*(posSpawner[0] - 127) + 127), position[1], (100 + 4), 178);
+
+              eraseTimeout.calltime = getTime() + 450;
+              eraseTimeout.callback = (GenericHandler)(&lineErase);
+              registerTimeout(&eraseTimeout);
+            }
+          }
+        }
+
+        if (fpos == 4 && (posSpawner[1] - position[1]) >= 3){
+          sendExecOn(UP, posSpawner[0], posSpawner[1], 0, 166);
+        }
+
 
 
   fpos = UNKNOWN;
   forme = UNKNOWN;
   rota = UNKNOWN;
+
+  shapeValueLine[0] = 0; shapeValueLine[1] = 0; shapeValueLine[2] = 0;
 
 }
 
@@ -1083,16 +1130,14 @@ byte lineErase(void){
     setLED(topCouleur[0], topCouleur[1], topCouleur[2], topCouleur[3]);
     delCouleur[0] = topCouleur[0]; delCouleur[1] = topCouleur[1]; delCouleur[2] = topCouleur[2]; delCouleur[3] = topCouleur[3];
 
-    if (bigShaq == UNKNOWN && topCouleur[3] == 255){
+    if (position[0] == 127) {
+      sendExecOn(UP, 127, (position[1] + 1), 0, 179);
+
+    }
+
+
+    if (topCouleur[3] == 255){
       bigShaq = 1;
-
-      if (position[0] == 127){
-        lineCounter++;
-      }
-      else {
-        sendExecOn(EAST, 127, position[1], fpos, 177);
-
-
         /*
         #ifdef LOG_DEBUG
         char s[25];
@@ -1101,19 +1146,12 @@ byte lineErase(void){
         printDebug(s);
         #endif
         */
+}
 
 
-      }
-    }
-    else if (bigShaq == 1 && topCouleur[0] == 0){
+    else if (topCouleur[3] == 0){
       bigShaq = UNKNOWN;
-      if (position[0] == 127 && lineCounter > 0){
-        lineCounter--;
-      }
-      else {
-        sendExecOn(EAST, 127, position[1], 0, 176);
-      }
-    }
+}
 
     sendLineDown();
 
@@ -1175,3 +1213,27 @@ byte delDownHandler (void){
 
   return 1;
 }
+
+  byte sendValueLine(PRef p) {
+    Chunk *c = getFreeUserChunk();
+
+    c->data[0] = lineCounter;
+
+    if (c != NULL) {
+
+        if (sendMessageToPort(c, p, c->data, 1, sendValueLineHandler,(GenericHandler)&freeMyChunk) == 0) {
+            freeChunk(c);
+            return 0;
+          }
+        }
+    return 1;
+  }
+
+  byte sendValueLineHandler(void) {
+    if (thisChunk == NULL) return 0;
+
+    lineCounter = thisChunk->data[0];
+    printf("Je suis %d, %d fonction fin compteur = %d\n", position[0], position[1], lineCounter);
+
+
+  }
